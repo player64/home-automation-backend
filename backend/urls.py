@@ -17,7 +17,7 @@ from django.contrib import admin
 from django.urls import path, include
 from users import views
 from rest_framework_simplejwt import views as jwt_views
-
+from devices import views as devices_views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/protected/', views.HelloView.as_view(), name='hello'),
@@ -25,4 +25,5 @@ urlpatterns = [
     path('api/v1/logout/', views.ApiLogout.as_view(), name='logout'),
     path('api/v1/token/refresh/', jwt_views.TokenRefreshView.as_view(), name='token_refresh'),
     path('api/v1/password-reset/', include('django_rest_passwordreset.urls', namespace='password_reset')),
+    path('api/v1/dashboard/', devices_views.DashboardView, name='dashboard'),
 ]
