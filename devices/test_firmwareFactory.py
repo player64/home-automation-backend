@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import json
 from django.test import TestCase
 
@@ -142,7 +142,7 @@ class TestFirmwareFactory(TestCase):
         })
 
         new_device.readings = relay.get_readings()
-        new_device.updated_at = datetime.datetime.today()
+        new_device.updated_at = datetime.today()
         new_device.save()
         db_device = Device.objects.filter(pk=new_device.id)
         self.assertEqual(db_device[0].readings, {

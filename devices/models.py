@@ -8,6 +8,18 @@ from django.utils.translation import gettext_lazy as _
 from django.db.models.fields import related
 
 
+class Workspace(models.Model):
+    name = models.CharField(max_length=20)
+
+    # devices = models.ManyToManyField(Device, blank=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ['name']
+
+
 class Device(models.Model):
     DEVICE_TYPE = (
         ('sensor', 'Sensor'),
@@ -26,21 +38,11 @@ class Device(models.Model):
     gpio = models.IntegerField(blank=True, null=True)
     sensor_type = models.CharField(max_length=10, blank=True)
     updated_at = models.DateTimeField(blank=True, null=True)
-    readings = models.JSONField(blank=True,  null=True)
+    readings = models.JSONField(blank=True, null=True)
+    workspace = models.ForeignKey(Workspace, on_delete=models.DO_NOTHING, blank=True, null=True)
 
     def __str__(self):
         return self.name
 
     class Meta:
         ordering = ['type']
-
-
-class Workspace(models.Model):
-    name = models.CharField(max_length=20)
-    devices = models.ManyToManyField(Device, blank=True)
-
-    def __str__(self):
-        return self.name
-
-    class Meta:
-        ordering = ['name']

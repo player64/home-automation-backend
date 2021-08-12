@@ -47,7 +47,6 @@ class TestUsers(APITestCase):
         self.assertEqual(response.json(), {'message': 'Hello, World!'})
 
     def test_password_reset_resets_password_success(self):
-        # https://github.com/studygyaan/django-rest-framework-tutorial
         User.objects.create_user(email='email@email.com', username='username', password='password')
         login = self.client.post('/api/v1/password-reset/', {
             'email': 'email@email.com'
