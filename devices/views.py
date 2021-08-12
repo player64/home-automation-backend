@@ -100,7 +100,6 @@ class DeviceList(APIView):
 
 class DeviceDetail(mixins.RetrieveModelMixin,
                    mixins.UpdateModelMixin,
-                   mixins.CreateModelMixin,
                    mixins.DestroyModelMixin,
                    generics.GenericAPIView):
     permission_classes = (IsAuthenticated,)
