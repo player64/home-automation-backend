@@ -1,6 +1,7 @@
 import json
 from django.contrib.auth.models import User
 from django.core import mail
+from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 import urllib.parse as urlparse
 
@@ -43,7 +44,10 @@ class TestUsers(APITestCase):
         self.assertTrue('access' in content and 'refresh' in content)
 
     def test_protected_route_with_token(self):
-        self.__authenticate()
+        # self.__authenticate()
+        usr = User.objects.create_user(email='email@email.com', username='username', password='password')
+        token = Token.objects.create(user=usr)
+        self.client.credentials(HTTP_AUTHORIZATION='Token {}'.format(token.key))
         response = self.client.get('/api/v1/protected/', follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {'message': 'Hello, World!'})
