@@ -122,7 +122,7 @@ class DeviceDetail(mixins.RetrieveModelMixin,
 
 class EventHub(APIView):
     def post(self, request):
-        event = EventHubMsg(data=json.loads(request.data), updated_at=datetime.today())
+        event = EventHubMsg(data=json.dumps(request.data), updated_at=datetime.today())
         event.save()
         return Response({}, status=status.HTTP_201_CREATED)
 
