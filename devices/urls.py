@@ -8,5 +8,6 @@ urlpatterns = [
     path('details/', views.DeviceList.as_view()),
     path('dashboard/', views.DashboardView.as_view()),
     path('workspaces/', views.WorkspaceList.as_view()),
-    path('workspace/<int:pk>/', views.WorkspaceDetail.as_view())
+    path('workspace/<int:pk>/', views.WorkspaceDetail.as_view()),
+    path('eventhub/', views.EventHub.as_view())
 ]

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework import viewsets, mixins, generics, status
@@ -6,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
 
-from devices.models import Device, Workspace
+from devices.models import Device, Workspace, EventHubMsg
 from devices.serializers import DeviceSerializer, WorkspaceSerializer
 
 
@@ -115,6 +117,13 @@ class DeviceDetail(mixins.RetrieveModelMixin,
 
     def delete(self, request, *args, **kwargs):
         return self.destroy(request, *args, **kwargs)
+
+
+class EventHub(APIView):
+    def post(self, request):
+        event = EventHubMsg(data=request.data, updated_at=datetime.today())
+        event.save()
+        return Response({}, status=status.HTTP_201_CREATED)
 
 
 """

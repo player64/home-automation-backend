@@ -2,8 +2,9 @@ import json
 
 from django.contrib.auth.models import User
 from django.test import TestCase
+from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
-from devices.models import Device, Workspace
+from devices.models import Device, Workspace, EventHubMsg
 
 
 class TestDevices(APITestCase):
@@ -137,6 +138,7 @@ class TestDevices(APITestCase):
         json_response = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(10, len(json_response))
+
     # -----
 
     def test_get_device(self):
@@ -198,3 +200,14 @@ class TestDevices(APITestCase):
         json_response = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(10, len(json_response))
+
+    def test_event_hub(self):
+        usr = User.objects.create_user(email='email@email.com', username='username', password='password')
+        token = Token.objects.create(user=usr)
+        self.client.credentials(HTTP_AUTHORIZATION='Token {}'.format(token.key))
+        response = self.client.post('/api/v1/devices/eventhub/', {
+            'test': 'test'
+        }, follow=True)
+        self.assertEqual(response.status_code, 201)
+        events = EventHubMsg.objects.all()
+        self.assertEqual(len(events), 1)

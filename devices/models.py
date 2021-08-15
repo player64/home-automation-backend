@@ -46,3 +46,11 @@ class Device(models.Model):
 
     class Meta:
         ordering = ['type']
+
+
+class EventHubMsg(models.Model):
+    data = models.JSONField(blank=True, null=True)
+    updated_at = models.DateTimeField(blank=True, null=True)
+
+    def __str__(self):
+        return self.pk
