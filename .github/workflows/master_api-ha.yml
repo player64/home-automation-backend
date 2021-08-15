@@ -31,8 +31,8 @@ jobs:
           python manage.py test
 
   build-and-deploy:
+    needs: test
     runs-on: ubuntu-latest
-
     steps:
       # checkout the repo
       - name: 'Checkout Github Action'
