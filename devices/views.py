@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 
 from django.shortcuts import render
@@ -121,7 +122,7 @@ class DeviceDetail(mixins.RetrieveModelMixin,
 
 class EventHub(APIView):
     def post(self, request):
-        event = EventHubMsg(data=request.data, updated_at=datetime.today())
+        event = EventHubMsg(data=json.loads(request.data), updated_at=datetime.today())
         event.save()
         return Response({}, status=status.HTTP_201_CREATED)
 
