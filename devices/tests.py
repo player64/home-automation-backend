@@ -2,6 +2,8 @@ import json
 
 from django.contrib.auth.models import User
 from django.test import TestCase
+from django.utils import timezone
+from django.utils.timezone import localtime
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 from devices.models import Device, Workspace, EventHubMsg
@@ -207,23 +209,13 @@ class TestDevices(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION='Token {}'.format(token.key))
 
         data = [{
-            "id": "5048875a-e1ec-1285-a738-4fb1ec07331f",
             "data": {
                 "body": "eyJJbmZvMSI6eyJNb2R1bGUiOiJHZW5lcmljIiwiVmVyc2lvbiI6IjkuNS4wLjIodGFzbW90YSkiLCJGYWxsYmFja1RvcGljIjoiY21uZC93ZW1vcy10MV9mYi8iLCJHcm91cFRvcGljIjoid2Vtb3MtdDEvY21uZC8ifX0=",
                 "properties": {
                     "topic": "wemos-t1/INFO1"
                 },
-                "systemProperties": {
-                    "iothub-enqueuedtime": "2021-08-15T12:48:49.9200000Z",
-                    "iothub-message-source": "Telemetry",
-                    "iothub-connection-device-id": "wemos-t1",
-                    "iothub-connection-auth-method": "{\"scope\":\"device\",\"type\":\"sas\",\"issuer\":\"iothub\",\"acceptingIpFilterRule\":null}",
-                    "iothub-connection-auth-generation-id": "637631575966940821"
-                }
             },
-            "topic": "/SUBSCRIPTIONS/D6815DD1-B3DC-419D-84BD-2F2A15A2442B/RESOURCEGROUPS/LYIT/PROVIDERS/MICROSOFT.DEVICES/IOTHUBS/LYIT",
             "subject": "devices/wemos-t1",
-            "eventTime": "2021-08-15T12:48:49.92Z",
             "eventType": "Microsoft.Devices.DeviceTelemetry",
             "dataVersion": "",
             "metadataVersion": "1"
@@ -233,4 +225,7 @@ class TestDevices(APITestCase):
                                     follow=True)
         self.assertEqual(response.status_code, 201)
         events = EventHubMsg.objects.all()
+
+        # print(localtime(events[0].updated_at))
+
         self.assertEqual(len(events), 1)

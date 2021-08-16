@@ -11,9 +11,10 @@ from rest_framework.views import APIView
 import base64
 from devices.models import Device, Workspace, EventHubMsg
 from devices.serializers import DeviceSerializer, WorkspaceSerializer
-
+from django.utils import timezone
 from collections.abc import Iterable
 from devices.firmwareFactory import FirmwareIdentifier, TasmotaFactory, AM2302Factory, RelayFactory, SensorFactory
+
 
 class DashboardView(APIView):
     permission_classes = (IsAuthenticated,)
@@ -134,6 +135,6 @@ class EventHub(APIView):
 
                 data = base64.b64decode(body)
                 msg = data.decode('ascii')
-                EventHubMsg.objects.create(data=json.loads(msg), properties=subject, updated_at=datetime.today())
+                EventHubMsg.objects.create(data=json.loads(msg), properties=subject, updated_at=timezone.now())
                 return Response({}, status=status.HTTP_201_CREATED)
         return Response({}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
