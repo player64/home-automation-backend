@@ -6,6 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 # Create your models here.
 from django.db.models.fields import related
+from sqlalchemy.orm import properties
 
 
 class Workspace(models.Model):
@@ -50,6 +51,7 @@ class Device(models.Model):
 
 class EventHubMsg(models.Model):
     data = models.JSONField(blank=True, null=True)
+    properties = models.TextField(blank=True, null=True)
     updated_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):

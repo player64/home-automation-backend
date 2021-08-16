@@ -8,9 +8,11 @@ from rest_framework.decorators import api_view, renderer_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
-
+import base64
 from devices.models import Device, Workspace, EventHubMsg
 from devices.serializers import DeviceSerializer, WorkspaceSerializer
+
+from collections.abc import Iterable
 
 
 class DashboardView(APIView):
@@ -122,35 +124,17 @@ class DeviceDetail(mixins.RetrieveModelMixin,
 
 class EventHub(APIView):
     def post(self, request):
-        event = EventHubMsg(data=json.dumps(request.data), updated_at=datetime.today())
-        event.save()
-        return Response({}, status=status.HTTP_201_CREATED)
+        if isinstance(request.data, list):
+            for item in request.data:
+                try:
+                    body = item['data']['body']
+                    subject = item['data']['properties']['topic']
+                except KeyError:
+                    return Response({}, status=status.HTTP_400_BAD_REQUEST)
 
-
-"""
-
-    def get_object(self, pk):
-        try:
-            return Workspace.objects.get(pk=pk)
-        except Workspace.DoesNotExist:
-            raise Http404
-
-    def get(self, request, pk, format=None):
-        snippet = self.get_object(pk)
-        serializer = WorkspaceSerializer(snippet)
-        return Response(serializer.data)
-
-    def put(self, request, pk, format=None):
-        snippet = self.get_object(pk)
-        serializer = WorkspaceSerializer(snippet, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk, format=None):
-        snippet = self.get_object(pk)
-        snippet.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-"""
+                data = base64.b64decode(body)
+                msg = data.decode('ascii')
+                event = EventHubMsg(data=json.loads(msg), properties=subject, updated_at=datetime.today())
+                event.save()
+                return Response({}, status=status.HTTP_201_CREATED)
+        return Response({}, status=status.HTTP_405_METHOD_NOT_ALLOWED)

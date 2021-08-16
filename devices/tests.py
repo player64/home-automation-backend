@@ -205,9 +205,32 @@ class TestDevices(APITestCase):
         usr = User.objects.create_user(email='email@email.com', username='username', password='password')
         token = Token.objects.create(user=usr)
         self.client.credentials(HTTP_AUTHORIZATION='Token {}'.format(token.key))
-        response = self.client.post('/api/v1/devices/eventhub/', {
-            'test': 'test'
-        }, follow=True)
+
+        data = [{
+            "id": "5048875a-e1ec-1285-a738-4fb1ec07331f",
+            "data": {
+                "body": "eyJJbmZvMSI6eyJNb2R1bGUiOiJHZW5lcmljIiwiVmVyc2lvbiI6IjkuNS4wLjIodGFzbW90YSkiLCJGYWxsYmFja1RvcGljIjoiY21uZC93ZW1vcy10MV9mYi8iLCJHcm91cFRvcGljIjoid2Vtb3MtdDEvY21uZC8ifX0=",
+                "properties": {
+                    "topic": "wemos-t1/INFO1"
+                },
+                "systemProperties": {
+                    "iothub-enqueuedtime": "2021-08-15T12:48:49.9200000Z",
+                    "iothub-message-source": "Telemetry",
+                    "iothub-connection-device-id": "wemos-t1",
+                    "iothub-connection-auth-method": "{\"scope\":\"device\",\"type\":\"sas\",\"issuer\":\"iothub\",\"acceptingIpFilterRule\":null}",
+                    "iothub-connection-auth-generation-id": "637631575966940821"
+                }
+            },
+            "topic": "/SUBSCRIPTIONS/D6815DD1-B3DC-419D-84BD-2F2A15A2442B/RESOURCEGROUPS/LYIT/PROVIDERS/MICROSOFT.DEVICES/IOTHUBS/LYIT",
+            "subject": "devices/wemos-t1",
+            "eventTime": "2021-08-15T12:48:49.92Z",
+            "eventType": "Microsoft.Devices.DeviceTelemetry",
+            "dataVersion": "",
+            "metadataVersion": "1"
+        }]
+
+        response = self.client.post('/api/v1/devices/eventhub/', json.dumps(data), content_type='application/json',
+                                    follow=True)
         self.assertEqual(response.status_code, 201)
         events = EventHubMsg.objects.all()
         self.assertEqual(len(events), 1)
