@@ -224,12 +224,7 @@ class TestDevices(APITestCase):
 
         response = self.client.post('/api/v1/devices/eventhub/', json.dumps(data), content_type='application/json',
                                     follow=True)
-        self.assertEqual(response.status_code, 201)
-        events = EventHubMsg.objects.all()
-
-        # print(localtime(events[0].updated_at))
-
-        self.assertEqual(len(events), 1)
+        self.assertEqual(response.status_code, 204)
 
     def test_status_to_device(self):
         self.__authenticate()
