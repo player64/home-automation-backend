@@ -11,11 +11,9 @@ from devices.models import Device
 
 class FirmwareIdentifier:
     @classmethod
-    def identify(cls,  payload_property: dict):
+    def identify(cls, payload_property: dict):
         if 'topic' in payload_property:
             return TasmotaFactory
-        elif 'firmware' in payload_property:
-            return SimulatedFactory
         else:
             raise NotImplementedError("Firmware not found")
 
@@ -64,14 +62,6 @@ class TasmotaFactory(FirmwareFactory):
         return 'tasmota'
 
 
-class SimulatedFactory(FirmwareFactory):
-    def identify(self):
-        pass
-
-    def __str__(self):
-        return 'simulated'
-
-
 # ------------------------------------
 class AbstractDevice(ABC):
     def __init__(self, firmware: FirmwareFactory, device: Device):
@@ -103,14 +93,12 @@ class AbstractDevice(ABC):
 
 
 class RelayFactory:
-
     def __init__(self, device: Device):
         self.Device = device
 
     def obtain(self):
         switcher = {
             'tasmota': RelayTasmota,
-            'simulated': RelaySimulated
         }
         relay = switcher.get(self.Device.firmware, lambda: 'Wrong argument')
         return relay
@@ -127,16 +115,7 @@ class RelayTasmota(AbstractDevice):
         pass
 
 
-class RelaySimulated(AbstractDevice):
-    def get_readings(self):
-        pass
-
-    def message(self):
-        pass
-
-
 class SensorFactory:
-
     def __init__(self, device: Device):
         self.Device = device
 
@@ -153,7 +132,6 @@ class AM2302Factory:
     def obtain(self, firmware_type):
         switcher = {
             'tasmota': AM2301Tasmota,
-            'simulated': AM2301Simulated
         }
         am2301 = switcher.get(firmware_type, lambda: 'Wrong argument')
         return am2301
@@ -166,19 +144,6 @@ class AM2301Tasmota(AbstractDevice):
             'temperature': body['AM2301']['Temperature'],
             'humidity': body['AM2301']['Humidity'],
             'tempUnits': body['TempUnit']
-        }
-
-    def message(self):
-        pass
-
-
-class AM2301Simulated(AbstractDevice):
-    def get_readings(self):
-        body = self.firmware.body
-        return {
-            'temperature': body['temperature'],
-            'humidity': body['humidity'],
-            'tempUnits': body['units']
         }
 
     def message(self):
