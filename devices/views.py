@@ -13,7 +13,7 @@ from devices.models import Device, Workspace, EventHubMsg
 from devices.serializers import DeviceSerializer, WorkspaceSerializer
 
 from collections.abc import Iterable
-
+from devices.firmwareFactory import FirmwareIdentifier, TasmotaFactory, AM2302Factory, RelayFactory, SensorFactory
 
 class DashboardView(APIView):
     permission_classes = (IsAuthenticated,)
@@ -134,7 +134,6 @@ class EventHub(APIView):
 
                 data = base64.b64decode(body)
                 msg = data.decode('ascii')
-                event = EventHubMsg(data=json.loads(msg), properties=subject, updated_at=datetime.today())
-                event.save()
+                EventHubMsg.objects.create(data=json.loads(msg), properties=subject, updated_at=datetime.today())
                 return Response({}, status=status.HTTP_201_CREATED)
         return Response({}, status=status.HTTP_405_METHOD_NOT_ALLOWED)

@@ -55,4 +55,4 @@ class EventHubMsg(models.Model):
     updated_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
-        return self.pk
+        return str(self.pk)
