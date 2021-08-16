@@ -1,3 +1,4 @@
+import base64
 import json
 
 from django.contrib.auth.models import User
@@ -229,3 +230,73 @@ class TestDevices(APITestCase):
         # print(localtime(events[0].updated_at))
 
         self.assertEqual(len(events), 1)
+
+    def test_status_to_device(self):
+        self.__authenticate()
+        device_1 = Device.objects.create(name='Test', device_host_id='wemos-t1', type='relay', firmware='tasmota',
+                                         gpio=2)
+        payload = {
+            "POWER2": "OFF"
+        }
+        data = [{
+            'data': {
+                'body': self.__convert_dict_to_base64(payload),
+                "properties": {
+                    "topic": "wemos-t1/RESULT"
+                },
+            }
+        }]
+
+        response = self.client.post('/api/v1/devices/eventhub/', json.dumps(data), content_type='application/json')
+        self.assertEqual(response.status_code, 201)
+
+        device = Device.objects.get(pk=device_1.pk)
+
+        self.assertEqual(device.readings, {
+            'state': 'OFF'
+        })
+
+        self.assertEqual(response.json(), {
+            'msg': 'success',
+            'data': {
+                "POWER2": "OFF"
+            },
+        })
+
+    def test_status_to_sensor(self):
+        self.__authenticate()
+        device_1 = Device.objects.create(name='Test', device_host_id='wemos-t1', type='sensor', firmware='tasmota',
+                                         sensor_type='am2301')
+        payload = {
+            "Time": "2021-08-16T13:57:26",
+            "AM2301": {
+                "DewPoint": 0,
+                "Humidity": 44.4,
+                "Temperature": 21.2
+            },
+            "TempUnit": "C"
+        }
+        data = [{
+            'data': {
+                'body': self.__convert_dict_to_base64(payload),
+                "properties": {
+                    "topic": "wemos-t1/SENSOR"
+                },
+            }
+        }]
+
+        response = self.client.post('/api/v1/devices/eventhub/', json.dumps(data), content_type='application/json')
+        self.assertEqual(response.status_code, 201)
+
+        device = Device.objects.get(pk=device_1.pk)
+
+        self.assertEqual(device.readings, {
+            'temperature': 21.2,
+            'humidity': 44.4,
+            'tempUnits': 'C'
+        })
+
+    @staticmethod
+    def __convert_dict_to_base64(payload: dict):
+        payload_json = json.dumps(payload).encode()
+        return base64.urlsafe_b64encode(payload_json).decode()

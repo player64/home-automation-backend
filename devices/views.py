@@ -129,12 +129,47 @@ class EventHub(APIView):
             for item in request.data:
                 try:
                     body = item['data']['body']
-                    subject = item['data']['properties']['topic']
+                    properties = item['data']['properties']
                 except KeyError:
                     return Response({}, status=status.HTTP_400_BAD_REQUEST)
 
-                data = base64.b64decode(body)
-                msg = data.decode('ascii')
-                EventHubMsg.objects.create(data=json.loads(msg), properties=subject, updated_at=timezone.now())
-                return Response({}, status=status.HTTP_201_CREATED)
+                body_decoded = self.__decode_body_msg(body)
+                #
+                firmware_instance = FirmwareIdentifier.identify(properties)
+
+                # obtain firmware factory this is child of FirmwareFactory
+                firmware_factory = firmware_instance(properties, body_decoded)
+
+                device_factory_type = firmware_factory.identify()
+
+                try:
+                    device_factory_instance = device_factory_type['factory']
+                    host_id = device_factory_type['device_id']
+                except KeyError:
+                    return Response({}, status=status.HTTP_204_NO_CONTENT)
+
+                if not device_factory_instance:
+                    return Response({}, status=status.HTTP_204_NO_CONTENT)
+
+                devices = Device.objects.filter(device_host_id=host_id)
+
+                for device in devices:
+                    factory_device_type = device_factory_instance(device)  # RelayFactory(device) init
+                    type_factory = factory_device_type.obtain()
+                    obtained_device = type_factory(firmware_factory, device)
+
+                    device.readings = obtained_device.get_readings()
+                    device.updated_at = timezone.now()
+                    device.save()
+
+                return Response({
+                    'msg': 'success',
+                    'data': body_decoded,
+                }, status=status.HTTP_201_CREATED)
         return Response({}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    @staticmethod
+    def __decode_body_msg(body):
+        data = base64.b64decode(body)
+        msg = data.decode('ascii')
+        return json.loads(msg)

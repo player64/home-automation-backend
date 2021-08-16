@@ -10,14 +10,14 @@ from devices.models import Device
 
 
 class FirmwareIdentifier:
-    def __init__(self, payload_property: dict):
-        self._property = payload_property
-
-    def identify(self):
-        if 'topic' in self._property:
+    @classmethod
+    def identify(cls,  payload_property: dict):
+        if 'topic' in payload_property:
             return TasmotaFactory
-        elif 'firmware' in self._property:
+        elif 'firmware' in payload_property:
             return SimulatedFactory
+        else:
+            raise NotImplementedError("Firmware not found")
 
 
 class FirmwareFactory(ABC):
@@ -49,17 +49,15 @@ class TasmotaFactory(FirmwareFactory):
         properties = self.properties
         subject = properties['topic']
         types = subject.split('/')
-
-        reading_type = ''
-
-        if types[1] == 'STATE':
-            reading_type = 'relay'
-        elif types[1] == 'SENSOR':
-            reading_type = 'sensor'
+        _types = {
+            'STATE': RelayFactory,
+            'SENSOR': SensorFactory,
+            'RESULT': RelayFactory
+        }
 
         return {
             'device_id': types[0],
-            'reading_type': reading_type
+            'factory': _types[types[1]] if types[1] in _types else False
         }
 
     def __str__(self):
