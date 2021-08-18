@@ -13,7 +13,7 @@ from devices.models import Device, Workspace, EventHubMsg
 class TestDevices(APITestCase):
     def __authenticate(self):
         User.objects.create_user(email='email@email.com', username='username', password='password')
-        response = self.client.post('/api/v1/login/', {
+        response = self.client.post('/api/v1/users/login/', {
             'username': 'username',
             'password': 'password'
         }, follow=True)
@@ -70,7 +70,7 @@ class TestDevices(APITestCase):
         self.assertEqual(len(content['devices']['sensors']), 0)
         self.assertEqual(len(content['workspaces']), 2)
 
-        # check get parameters to receive devices from workspace 2
+        # check request with get parameters to receive devices from workspace 2
         response = self.client.get('/api/v1/devices/dashboard/?workspace=2', follow=True)
         content = response.json()
         self.assertEqual(len(content['devices']['relays']), 1)

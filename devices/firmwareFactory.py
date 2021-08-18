@@ -10,8 +10,8 @@ from devices.models import Device
 
 
 class FirmwareIdentifier:
-    @classmethod
-    def identify(cls, payload_property: dict):
+    @staticmethod
+    def identify(payload_property: dict):
         if 'topic' in payload_property:
             return TasmotaFactory
         else:
@@ -55,7 +55,8 @@ class TasmotaFactory(FirmwareFactory):
 
         return {
             'device_id': types[0],
-            'factory': _types[types[1]] if types[1] in _types else False
+            'factory': _types[types[1]] if types[1] in _types else False,
+            'save_to_log': True if types[1] == 'RESULT' else False
         }
 
     def __str__(self):

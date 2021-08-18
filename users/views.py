@@ -1,20 +1,15 @@
-from django.shortcuts import render
 from django.contrib.auth.models import User
-# Create your views here.
 from rest_framework import status, mixins, generics
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import ValidationError
 from rest_framework.generics import UpdateAPIView
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from users.serializers import UserSerializer, UserPasswordChangeSerializer
 
 
 class HelloView(APIView):
-    permission_classes = (IsAuthenticated,)
-
     def get(self, request):
         content = {'message': 'Hello, World!'}
         return Response(content)
@@ -31,7 +26,7 @@ class ApiLogout(APIView):
 
 
 class UserList(APIView):
-    permission_classes = (IsAuthenticated,)
+    # permission_classes = (IsAuthenticated,)
 
     def get(self, request):
         users = User.objects.all()
@@ -50,8 +45,6 @@ class UserDetail(mixins.RetrieveModelMixin,
                  mixins.UpdateModelMixin,
                  mixins.DestroyModelMixin,
                  generics.GenericAPIView):
-    permission_classes = (IsAuthenticated,)
-
     queryset = User.objects.all()
     serializer_class = UserSerializer
 

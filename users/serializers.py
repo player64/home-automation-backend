@@ -1,8 +1,9 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
+from rest_framework.generics import get_object_or_404
 
 
-class UserSerializer(serializers.HyperlinkedModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['pk', 'username', 'email']
@@ -13,7 +14,6 @@ class UserPasswordChangeSerializer(serializers.Serializer):
 
     def save(self, pk, **kwargs):
         password = self.validated_data['new_password']
-        # user = self.context['request'].user
-        user = User.objects.get(pk=pk)
+        user = get_object_or_404(User, pk=pk)
         user.set_password(password)
         user.save()

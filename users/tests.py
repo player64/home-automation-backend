@@ -9,7 +9,7 @@ import urllib.parse as urlparse
 class TestUsers(APITestCase):
     def __authenticate(self):
         User.objects.create_user(email='email@email.com', username='username', password='password')
-        response = self.client.post('/api/v1/login/', {
+        response = self.client.post('/api/v1/users/login/', {
             'username': 'username',
             'password': 'password'
         }, follow=True)
@@ -25,7 +25,7 @@ class TestUsers(APITestCase):
         self.assertEqual(content, {'detail': 'Authentication credentials were not provided.'})
 
     def test_api_login_with_wrong_password(self):
-        response = self.client.post('/api/v1/login/', {
+        response = self.client.post('/api/v1/users/login/', {
             'username': 'test',
             'password': 'test_password'
         }, HTTP_ACCEPT='application/json')
@@ -35,7 +35,7 @@ class TestUsers(APITestCase):
 
     def test_api_login_with_credentials(self):
         User.objects.create_user(username='username', password='password')
-        response = self.client.post('/api/v1/login/', {
+        response = self.client.post('/api/v1/users/login/', {
             'username': 'username',
             'password': 'password'
         }, follow=True)
@@ -54,7 +54,7 @@ class TestUsers(APITestCase):
 
     def test_password_reset_resets_password_success(self):
         User.objects.create_user(email='email@email.com', username='username', password='password')
-        login = self.client.post('/api/v1/password-reset/', {
+        login = self.client.post('/api/v1/users/password-reset/', {
             'email': 'email@email.com'
         })
         self.assertEqual(login.json(), {'status': 'OK'})
@@ -64,7 +64,7 @@ class TestUsers(APITestCase):
         token = urlparse.parse_qs(parsed.query)['token'][0]
 
         # change the password
-        response = self.client.post('/api/v1/password-reset/confirm/', {
+        response = self.client.post('/api/v1/users/password-reset/confirm/', {
             'token': token,
             'password': 'changed_password'
         })
@@ -75,12 +75,29 @@ class TestUsers(APITestCase):
     def test_logout(self):
         token = self.__authenticate()
         self.client.credentials(HTTP_AUTHORIZATION='Bearer {}'.format(token['access']))
-        response = self.client.post('/api/v1/logout/', {
+        response = self.client.post('/api/v1/users/logout/', {
             'refresh': token['refresh']
         })
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {'status': 'Successfully logged out'})
+
+        # check is the token is blacklisted
+        response = self.client.post('/api/v1/users/token/refresh/', {
+            'refresh': token['refresh']
+        })
+        self.assertEqual(response.json(), {'detail': 'Token is blacklisted', 'code': 'token_not_valid'})
+        self.assertEqual(response.status_code, 401)
+
+    def test_refresh_token(self):
+        tokens = self.__authenticate()
+        access_token = tokens['access']
+
+        response = self.client.post('/api/v1/users/token/refresh/', {
+            'refresh': tokens['refresh']
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['access'] != access_token)
 
     def test_users_list(self):
         # create 10 users
@@ -127,6 +144,7 @@ class TestUsers(APITestCase):
         response = self.client.put('/api/v1/users/update-password/%i/' % user.pk, {
             'new_password': 'strongPassword',
         })
+
         self.assertEqual(response.status_code, 204)
         user = User.objects.get(username='test_user')
         self.assertTrue(user.check_password('strongPassword'))
@@ -161,3 +179,6 @@ class TestUsers(APITestCase):
             'errors': 'You cannot delete yourself'
         })
         self.assertEqual(User.objects.all().count(), 1)
+
+
+
