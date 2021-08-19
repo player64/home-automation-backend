@@ -204,32 +204,128 @@ class TestDevices(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(10, len(json_response))
 
-    def test_event_hub(self):
+    def test_update_readings_action_not_found(self):
         usr = User.objects.create_user(email='email@email.com', username='username', password='password')
+        # generate the token rather use JWT to check correct error
         token = Token.objects.create(user=usr)
         self.client.credentials(HTTP_AUTHORIZATION='Token {}'.format(token.key))
 
+        payload = {
+            "Info1": {
+                "Module": "Generic",
+                "Version": "9.5.0.2(tasmota)",
+            }
+        }
+
         data = [{
             "data": {
-                "body": "eyJJbmZvMSI6eyJNb2R1bGUiOiJHZW5lcmljIiwiVmVyc2lvbiI6IjkuNS4wLjIodGFzbW90YSkiLCJGYWxsYmFja1RvcGljIjoiY21uZC93ZW1vcy10MV9mYi8iLCJHcm91cFRvcGljIjoid2Vtb3MtdDEvY21uZC8ifX0=",
+                "body": self.__convert_dict_to_base64(payload),
                 "properties": {
                     "topic": "wemos-t1/INFO1"
                 },
             },
-            "subject": "devices/wemos-t1",
-            "eventType": "Microsoft.Devices.DeviceTelemetry",
-            "dataVersion": "",
-            "metadataVersion": "1"
         }]
 
-        response = self.client.post('/api/v1/devices/eventhub/', json.dumps(data), content_type='application/json',
+        response = self.client.post('/api/v1/devices/update-readings/', json.dumps(data),
+                                    content_type='application/json',
                                     follow=True)
         self.assertEqual(response.status_code, 204)
 
-    def test_status_to_device(self):
+    def test_update_readings_bad_data_type(self):
         self.__authenticate()
-        device_1 = Device.objects.create(name='Test', device_host_id='wemos-t1', type='relay', firmware='tasmota',
-                                         gpio=2)
+        response = self.client.post('/api/v1/devices/update-readings/', json.dumps({}),
+                                    content_type='application/json',
+                                    follow=True)
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.json(), {'detail': 'Request data must be a list'})
+
+    def test_update_readings_key_error_exceptions(self):
+        self.__authenticate()
+        data = [{
+            "data": {
+                "test": "test",
+            },
+        }]
+        response = self.client.post('/api/v1/devices/update-readings/', json.dumps(data),
+                                    content_type='application/json',
+                                    follow=True)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {'error': 'KeyError. Happened during assigning values body and properties'})
+
+    def test_update_readings_firmware_not_found_exceptions(self):
+        self.__authenticate()
+        data = [{
+            "data": {
+                "body": self.__convert_dict_to_base64({'test': 'test'}),
+                "properties": {},
+            },
+        }]
+        response = self.client.post('/api/v1/devices/update-readings/', json.dumps(data),
+                                    content_type='application/json',
+                                    follow=True)
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.json(), {'detail': 'Firmware not found'})
+
+    def test_update_readings_json_exception(self):
+        self.__authenticate()
+        data = [{
+            "data": {
+                "body": "",
+                "properties": {
+                    "topic": "d1"
+                },
+            },
+        }]
+        response = self.client.post('/api/v1/devices/update-readings/', json.dumps(data),
+                                    content_type='application/json',
+                                    follow=True)
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.json(), {'detail': 'Error when trying to convert body to json'})
+
+    def test_update_readings_base64_decode_exception(self):
+        self.__authenticate()
+        data = [{
+            "data": {
+                "body": "jnjdfiojfiodjoifjoifjo",
+                "properties": {
+                    "topic": "d1"
+                },
+            },
+        }]
+        response = self.client.post('/api/v1/devices/update-readings/', json.dumps(data),
+                                    content_type='application/json',
+                                    follow=True)
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.json(), {'detail': 'Error when trying to decode body to ascii'})
+
+    def test_update_readings_device_readings_not_updated(self):
+        self.__authenticate()
+        Device.objects.create(name='Test', device_host_id='t1', type='relay', firmware='tasmota',
+                              gpio=3)
+        Device.objects.create(name='Test', device_host_id='t1', type='relay', firmware='tasmota',
+                              gpio=2)
+        payload = {
+            "POWER2": "OFF"
+        }
+        data = [{
+            'data': {
+                'body': self.__convert_dict_to_base64(payload),
+                "properties": {
+                    "topic": "t1/RESULT"
+                },
+            }
+        }]
+        response = self.client.post('/api/v1/devices/update-readings/', json.dumps(data),
+                                    content_type='application/json')
+
+        self.assertEqual(response.status_code, 201)
+
+
+    def test_status_to_relay(self):
+        self.__authenticate()
+        Device.objects.create(name='Test', device_host_id='wemos-t1', type='relay', firmware='tasmota',
+                              gpio=2)
         payload = {
             "POWER2": "OFF"
         }
@@ -242,7 +338,8 @@ class TestDevices(APITestCase):
             }
         }]
 
-        response = self.client.post('/api/v1/devices/eventhub/', json.dumps(data), content_type='application/json')
+        response = self.client.post('/api/v1/devices/update-readings/', json.dumps(data),
+                                    content_type='application/json')
         self.assertEqual(response.status_code, 201)
 
         device = Device.objects.get(pk=device_1.pk)
@@ -280,7 +377,8 @@ class TestDevices(APITestCase):
             }
         }]
 
-        response = self.client.post('/api/v1/devices/eventhub/', json.dumps(data), content_type='application/json')
+        response = self.client.post('/api/v1/devices/update-readings/', json.dumps(data),
+                                    content_type='application/json')
         self.assertEqual(response.status_code, 201)
 
         device = Device.objects.get(pk=device_1.pk)
@@ -288,10 +386,40 @@ class TestDevices(APITestCase):
         self.assertEqual(device.readings, {
             'temperature': 21.2,
             'humidity': 44.4,
-            'tempUnits': 'C'
+            'settings': {
+                'tempUnits': 'C'
+            }
         })
 
     @staticmethod
     def __convert_dict_to_base64(payload: dict):
         payload_json = json.dumps(payload).encode()
         return base64.urlsafe_b64encode(payload_json).decode()
+
+    def test_change_device_state(self):
+        test_device = Device.objects.create(name='Test', device_host_id='wemos-t1', type='relay', firmware='tasmota',
+                                            gpio=1)
+        self.__authenticate()
+        response = self.client.post('/api/v1/devices/device-state/%d/' % test_device.id, {
+            'state': 'on'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'result': 'OK'})
+
+    def test_change_sensor_state(self):
+        test_device = Device.objects.create(name='Test', device_host_id='wemos-t1', type='sensor', firmware='tasmota',
+                                            sensor_type='am2301')
+        self.__authenticate()
+        response = self.client.post('/api/v1/devices/device-state/%d/' % test_device.id, {
+            'state': 'on'
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {'error': 'You cannot send the message to sensor type'})
+
+    def test_change_not_exist_device(self):
+        self.__authenticate()
+        response = self.client.post('/api/v1/devices/device-state/%d/' % 1, {
+            'state': 'on'
+        })
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json(), {'detail': 'Not found.'})

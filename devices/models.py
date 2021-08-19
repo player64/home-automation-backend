@@ -32,12 +32,17 @@ class Device(models.Model):
         ('simulated', 'Simulated')
     )
 
+    SENSOR_TYPE = (
+        (None, '---'),
+        ('am2301', 'AM2301')
+    )
+
     name = models.CharField(max_length=80)
     device_host_id = models.CharField(max_length=120)
     type = models.CharField(max_length=6, choices=DEVICE_TYPE)
     firmware = models.CharField(max_length=20, choices=FIRMWARE, default='tasmota')
     gpio = models.IntegerField(blank=True, null=True)
-    sensor_type = models.CharField(max_length=10, blank=True)
+    sensor_type = models.CharField(max_length=10, choices=SENSOR_TYPE, default=None, null=True, blank=True)
     updated_at = models.DateTimeField(blank=True, null=True)
     readings = models.JSONField(blank=True, null=True)
     workspace = models.ForeignKey(Workspace, on_delete=models.DO_NOTHING, blank=True, null=True)

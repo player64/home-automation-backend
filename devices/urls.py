@@ -9,5 +9,6 @@ urlpatterns = [
     path('dashboard/', views.DashboardView.as_view()),
     path('workspaces/', views.WorkspaceList.as_view()),
     path('workspace/<int:pk>/', views.WorkspaceDetail.as_view()),
-    path('eventhub/', views.EventHub.as_view())
+    path('update-readings/', views.UpdateReadings.as_view()),
+    path('device-state/<int:device_id>/', views.UpdateState.as_view())
 ]

@@ -1,7 +1,10 @@
+import binascii
 import json
 from datetime import datetime
 
 from django.shortcuts import render
+from rest_framework.exceptions import ValidationError, ParseError, MethodNotAllowed
+from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework import viewsets, mixins, generics, status
 from rest_framework.decorators import api_view, renderer_classes
@@ -9,11 +12,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
 import base64
+
+from devices.device_types.device_type_factories import RelayFactory, identify_by_payload
+from devices.device_types.exceptions import FirmwareFactoryException, DeviceExceptions
+
 from devices.models import Device, Workspace, EventHubMsg
 from devices.serializers import DeviceSerializer, WorkspaceSerializer
 from django.utils import timezone
 from collections.abc import Iterable
-from devices.firmwareFactory import FirmwareIdentifier, TasmotaFactory, AM2302Factory, RelayFactory, SensorFactory
 
 
 class DashboardView(APIView):
@@ -56,8 +62,8 @@ class WorkspaceList(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request):
-        snippets = Workspace.objects.all()
-        serializer = WorkspaceSerializer(snippets, many=True)
+        workspaces = Workspace.objects.all()
+        serializer = WorkspaceSerializer(workspaces, many=True)
         return Response(serializer.data)
 
     def post(self, request):
@@ -117,59 +123,81 @@ class DeviceDetail(mixins.RetrieveModelMixin,
         return self.retrieve(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):
+        # print(request.data.get('sensor_type'))
         return self.update(request, *args, **kwargs)
 
     def delete(self, request, *args, **kwargs):
         return self.destroy(request, *args, **kwargs)
 
 
-class EventHub(APIView):
+class UpdateReadings(APIView):
     def post(self, request):
-        if isinstance(request.data, list):
-            for item in request.data:
-                try:
-                    body = item['data']['body']
-                    properties = item['data']['properties']
-                except KeyError:
-                    return Response({}, status=status.HTTP_400_BAD_REQUEST)
-
+        if not isinstance(request.data, list):
+            raise MethodNotAllowed(method=self, detail='Request data must be a list')
+        for item in request.data:
+            try:
+                body = item['data']['body']
+                properties = item['data']['properties']
                 body_decoded = self.__decode_body_msg(body)
-                #
-                firmware_instance = FirmwareIdentifier.identify(properties)
+                firmware = identify_by_payload(properties)
+                firmware_factory = firmware(properties, body_decoded)
+                identify = firmware_factory.identify_properties()
+                device_factory_instance = identify['factory']
+                host_id = identify['device_id']
+            except KeyError:
+                raise ParseError({'error': 'KeyError. Happened during assigning values body and properties'})
+            except NotImplementedError as e:
+                # raised by identify_by_payload when firmware not found
+                raise MethodNotAllowed(method=self, detail=str(e))
+            except json.decoder.JSONDecodeError:
+                raise MethodNotAllowed(method=self, detail='Error when trying to convert body to json')
+            except binascii.Error:
+                raise MethodNotAllowed(method=self, detail='Error when trying to decode body to ascii')
+            except FirmwareFactoryException:
+                # action not found during identify_properties
+                return Response(status=status.HTTP_204_NO_CONTENT)
 
-                # obtain firmware factory this is child of FirmwareFactory
-                firmware_factory = firmware_instance(properties, body_decoded)
+            devices = Device.objects.filter(device_host_id=host_id)
 
-                device_factory_type = firmware_factory.identify()
+            for device in devices:
+                device_type_factory = device_factory_instance(device).obtain_factory()
+                obtained_device = device_type_factory(firmware_factory, device)
 
                 try:
-                    device_factory_instance = device_factory_type['factory']
-                    host_id = device_factory_type['device_id']
-                except KeyError:
-                    return Response({}, status=status.HTTP_204_NO_CONTENT)
-
-                if not device_factory_instance:
-                    return Response({}, status=status.HTTP_204_NO_CONTENT)
-
-                devices = Device.objects.filter(device_host_id=host_id)
-
-                for device in devices:
-                    factory_device_type = device_factory_instance(device)  # RelayFactory(device) init
-                    type_factory = factory_device_type.obtain()
-                    obtained_device = type_factory(firmware_factory, device)
-
                     device.readings = obtained_device.get_readings()
                     device.updated_at = timezone.now()
                     device.save()
-
-                return Response({
-                    'msg': 'success',
-                    'data': body_decoded,
-                }, status=status.HTTP_201_CREATED)
-        return Response({}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+                    print('Device was updated')
+                except DeviceExceptions:
+                    print('Device wasn\'t updated')
+                    continue
+            return Response({
+                'msg': 'success',
+                'data': body_decoded,
+            }, status=status.HTTP_201_CREATED)
 
     @staticmethod
     def __decode_body_msg(body):
         data = base64.b64decode(body)
         msg = data.decode('ascii')
         return json.loads(msg)
+
+
+class UpdateState(APIView):
+    def post(self, request, device_id):
+        device = get_object_or_404(Device, pk=device_id)
+        if device.type != 'relay':
+            raise ValidationError({'error': 'You cannot send the message to sensor type'})
+
+        relay_factory = RelayFactory(device).obtain_factory()
+        relay = relay_factory(None, device)
+
+        try:
+            relay.message(request.data.get('state'))
+        except DeviceExceptions as e:
+            Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(e)
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'result': 'OK'}, status=status.HTTP_200_OK)
