@@ -1,6 +1,6 @@
 from devices.device_types.abstracts import DeviceTypeFactory, FirmwareFactory
 from devices.device_types.tasmota import RelayTasmota, AM2301Tasmota, TasmotaFactory
-from devices.device_types.exceptions import DeviceExceptions
+from devices.device_types.exceptions import DeviceException
 
 
 def identify_by_payload(payload_property: dict) -> FirmwareFactory:
@@ -15,13 +15,11 @@ class RelayFactory(DeviceTypeFactory):
             'tasmota': RelayTasmota,
             # other firmware types
         }
-
         try:
             relay_factory = factories[self.device.firmware]
+            return relay_factory
         except KeyError:
-            raise DeviceExceptions('Relay factory not found')
-
-        return relay_factory
+            raise DeviceException('Relay factory not found')
 
 
 class SensorFactory(DeviceTypeFactory):
@@ -32,9 +30,9 @@ class SensorFactory(DeviceTypeFactory):
         }
         try:
             factory = sensor_types[self.device.sensor_type]
+            return factory().obtain_factory(self.device.firmware)
         except KeyError:
-            raise DeviceExceptions('Sensor factory not found in SensorFactory')
-        return factory().obtain_factory(self.device.firmware)
+            raise DeviceException('Sensor factory not found in SensorFactory')
 
     def __repr__(self):
         return 'SensorFactory'
@@ -47,7 +45,6 @@ class AM2302Factory:
             # other firmware types
         }
         try:
-            am2301 = sensor_types[firmware_type]
+            return sensor_types[firmware_type]
         except KeyError:
-            raise DeviceExceptions('Firmware AM2301 not found in AM2302Factory')
-        return am2301
+            raise DeviceException('Firmware AM2301 not found in AM2302Factory')

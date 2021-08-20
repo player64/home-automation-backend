@@ -2,12 +2,20 @@ import os
 
 from devices.device_types.abstracts import FirmwareFactory, FirmwareIdentifyProperties, AbstractDevice
 from devices.device_types import device_type_factories
-from devices.device_types.exceptions import FirmwareFactoryException, DeviceExceptions
+from devices.device_types.exceptions import FirmwareFactoryException, DeviceException
 from azure.iot.hub import IoTHubRegistryManager
 
 
 class TasmotaFactory(FirmwareFactory):
     def identify_properties(self) -> FirmwareIdentifyProperties:
+        """
+        Method used to parse the message from Azure IoT Hub sent by Tasmota device
+        :return: {
+            'device_id': str
+            'factory': DeviceTypeFactory,
+            'save_to_log': bool
+        }
+        """
         try:
             subject = self.properties['topic']
             types = subject.split('/')
@@ -30,7 +38,7 @@ class TasmotaFactory(FirmwareFactory):
         return {
             'device_id': host_device_id,
             'factory': factory,
-            'save_to_log': (action == 'RESULT')
+            'save_to_db': (action == 'RESULT')
         }
 
     def __str__(self):
@@ -39,14 +47,17 @@ class TasmotaFactory(FirmwareFactory):
 
 class RelayTasmota(AbstractDevice):
     def get_readings(self):
+        """
+        Method for getting readings from Azure IoT Hub reads them from Tasmota firmware
+        :return: {'state': ON or OFF}
+        """
         body = self.firmware.body
         try:
-            state = body['POWER%i' % self.device.gpio]
             return {
-                'state': state
+                'state': body['POWER%i' % self.device.gpio]
             }
         except KeyError:
-            raise DeviceExceptions('Cannot read the readings from tasmota relay')
+            raise DeviceException('Cannot read the readings from tasmota relay')
 
     def message(self, state: str):
         """
@@ -56,7 +67,8 @@ class RelayTasmota(AbstractDevice):
         """
         connection_secret = os.environ.get('CONNECTION_STRING')
         if not connection_secret:
-            raise DeviceExceptions('You must provide Azure CONNECTION_STRING secret')
+            raise DeviceException(
+                'Azure CONNECTION_STRING secret not found. Add CONNECTION_STRING to your environment.')
         registry_manager = IoTHubRegistryManager(connection_secret)
         props = {}
         props.update(TOPIC='/power%d' % self.device.gpio)
@@ -65,22 +77,32 @@ class RelayTasmota(AbstractDevice):
 
 class AM2301Tasmota(AbstractDevice):
     def get_readings(self):
-        body = self.firmware.body
-
-        try:
-            temperature = body['AM2301']['Temperature']
-            humidity = body['AM2301']['Humidity']
-            temp_units = body['TempUnit']
-        except KeyError:
-            raise DeviceExceptions('Cannot read the readings from tasmota AM2301')
-
-        return {
-            'temperature': temperature,
-            'humidity': humidity,
-            'settings': {
-                'tempUnits': temp_units
+        """
+        Method for getting readings from Azure IoT Hub reads them from Tasmota firmware
+        :return: {
+                'temperature': float,
+                'humidity': float,
+                'settings': {
+                    'tempUnits': C or F
+                }
             }
-        }
+        """
+        body = self.firmware.body
+        try:
+            return {
+                'temperature': body['AM2301']['Temperature'],
+                'humidity': body['AM2301']['Humidity'],
+                'settings': {
+                    'tempUnits': body['TempUnit']
+                }
+            }
+        except KeyError:
+            raise DeviceException('Cannot read the readings from tasmota AM2301')
 
-    def message(self, msg):
-        raise DeviceExceptions('You cannot send the message to sensor type')
+    def message(self, msg=None):
+        """
+        Mathod not implemented
+        :param msg: None
+        :return: DeviceException
+        """
+        raise DeviceException('You cannot send the message to sensor type')

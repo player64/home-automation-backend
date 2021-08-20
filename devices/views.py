@@ -1,34 +1,32 @@
 import binascii
 import json
-from datetime import datetime
+from urllib.request import Request
 
-from django.shortcuts import render
-from rest_framework.exceptions import ValidationError, ParseError, MethodNotAllowed
+from rest_framework.exceptions import MethodNotAllowed, ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
-from rest_framework import viewsets, mixins, generics, status
-from rest_framework.decorators import api_view, renderer_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.renderers import JSONRenderer
+from rest_framework import mixins, generics, status
 from rest_framework.views import APIView
 import base64
 
 from devices.device_types.device_type_factories import RelayFactory, identify_by_payload
-from devices.device_types.exceptions import FirmwareFactoryException, DeviceExceptions
+from devices.device_types.exceptions import FirmwareFactoryException, DeviceException
 
-from devices.models import Device, Workspace, EventHubMsg
-from devices.serializers import DeviceSerializer, WorkspaceSerializer
+from devices.models import Device, Workspace, DeviceLog, DeviceEvent
+from devices.serializers import DeviceSerializer, WorkspaceSerializer, DeviceDetailSerializer, DeviceLogSerializer, \
+    DeviceEventSerializer
 from django.utils import timezone
-from collections.abc import Iterable
+import logging
+
+logger = logging.getLogger('django')
 
 
 class DashboardView(APIView):
-    permission_classes = (IsAuthenticated,)
-
     def get(self, request):
         workspace_id = request.query_params.get('workspace')
         if workspace_id:
             try:
+                # TODO: change this to get_object_or_404
                 workspace = Workspace.objects.get(pk=workspace_id)
             except ValueError:
                 # get unassigned devices
@@ -59,8 +57,6 @@ class DashboardView(APIView):
 
 
 class WorkspaceList(APIView):
-    permission_classes = (IsAuthenticated,)
-
     def get(self, request):
         workspaces = Workspace.objects.all()
         serializer = WorkspaceSerializer(workspaces, many=True)
@@ -79,12 +75,11 @@ class WorkspaceDetail(mixins.RetrieveModelMixin,
                       mixins.CreateModelMixin,
                       mixins.DestroyModelMixin,
                       generics.GenericAPIView):
-    permission_classes = (IsAuthenticated,)
-
     queryset = Workspace.objects.all()
     serializer_class = WorkspaceSerializer
 
     def get(self, request, *args, **kwargs):
+        # @TODO replace this method with new class add devices belongs to the workspace as well
         return self.retrieve(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):
@@ -94,30 +89,103 @@ class WorkspaceDetail(mixins.RetrieveModelMixin,
         return self.destroy(request, *args, **kwargs)
 
 
+class DeviceEventDetail(mixins.RetrieveModelMixin, mixins.UpdateModelMixin,
+                        mixins.DestroyModelMixin, generics.GenericAPIView):
+    queryset = DeviceEvent.objects.all()
+    serializer_class = DeviceEventSerializer
+
+    def get(self, request, *args, **kwargs):
+        return self.retrieve(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        # @TODO: add validation if sensor
+        return self.update(request, *args, **kwargs)
+
+
+class DeviceEventCreate(mixins.CreateModelMixin, generics.GenericAPIView):
+    queryset = DeviceEvent.objects.all()
+    serializer_class = DeviceEventSerializer
+
+    def post(self, request, *args, **kwarg):
+        event_type = request.data.get('type')
+        time = request.data.get('time')
+        sensor = request.data.get('time')
+        reading_type = request.data.get('reading_type')
+        rule = request.data.get('rule')
+        value = request.data.get('value')
+
+        if event_type == 'time' and not time:
+            raise ValidationError({'error': 'Time cannot be empty'})
+
+        return self.create(request, *args, **kwarg)
+
+
 class DeviceList(APIView):
-    permission_classes = (IsAuthenticated,)
 
     def get(self, request):
-        snippets = Device.objects.all()
-        serializer = DeviceSerializer(snippets, many=True)
+        # @TODO: to remove
+        """
+        Get all devices
+        :param request:
+        :return: Response
+        """
+        devices = Device.objects.all()
+        serializer = DeviceSerializer(devices, many=True)
         return Response(serializer.data)
 
     def post(self, request):
+        """
+        Add new device
+        :param request:
+        :return: Response
+        """
         serializer = DeviceSerializer(data=request.data)
+
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class DeviceSingle(APIView):
+    def get(self, request, device_id):
+        """
+        Get single device with related Logs and Events
+        :param device_id:
+        :param request:
+        :return: Response
+        """
+        device = get_object_or_404(Device, pk=device_id)
+        d_serializer = DeviceDetailSerializer(device)
+        logs = DeviceLog.objects.filter(device=device)
+        l_serializer = DeviceLogSerializer(logs, many=True)
+        workspaces = Workspace.objects.all()
+        w_serializer = WorkspaceSerializer(workspaces, many=True)
+
+        content = {
+            **d_serializer.data,
+            'logs': l_serializer.data,
+            'workspaces': w_serializer.data,
+        }
+
+        if device.type == 'relay':
+            # for relay only events are available
+            events = DeviceEvent.objects.filter(device=device)
+            e_serializer = DeviceEventSerializer(events, many=True)
+            content.update({
+                'events': e_serializer.data
+            })
+
+        return Response(content)
+    # @TODO: Add post method here to find by name
+
+
 class DeviceDetail(mixins.RetrieveModelMixin,
                    mixins.UpdateModelMixin,
                    mixins.DestroyModelMixin,
                    generics.GenericAPIView):
-    permission_classes = (IsAuthenticated,)
-
     queryset = Device.objects.all()
-    serializer_class = WorkspaceSerializer
+    serializer_class = DeviceDetailSerializer
 
     def get(self, request, *args, **kwargs):
         return self.retrieve(request, *args, **kwargs)
@@ -131,8 +199,25 @@ class DeviceDetail(mixins.RetrieveModelMixin,
 
 
 class UpdateReadings(APIView):
-    def post(self, request):
+    @staticmethod
+    def __decode_body_msg(body) -> dict:
+        """
+        Method to decode a body payload from Azure IoT Hub and return as JSON
+        :param body:
+        :return: json
+        """
+        data = base64.b64decode(body)
+        msg = data.decode('ascii')
+        return json.loads(msg)
+
+    def post(self, request: Request):
+        """
+        Mathod used for update devices readings
+        :param request: Request
+        :return: Response
+        """
         if not isinstance(request.data, list):
+            logger.error('UpdateReadings - Supplied %s needed list' % str(type(request.data)))
             raise MethodNotAllowed(method=self, detail='Request data must be a list')
         for item in request.data:
             try:
@@ -144,43 +229,44 @@ class UpdateReadings(APIView):
                 identify = firmware_factory.identify_properties()
                 device_factory_instance = identify['factory']
                 host_id = identify['device_id']
+                save_to_db = identify['save_to_db']
             except KeyError:
-                raise ParseError({'error': 'KeyError. Happened during assigning values body and properties'})
+                logger.error('UpdateReadings - KeyError. Happened during assigning values body and properties')
+                continue
             except NotImplementedError as e:
-                # raised by identify_by_payload when firmware not found
-                raise MethodNotAllowed(method=self, detail=str(e))
+                logger.error('UpdateReadings - %s' % str(e))
+                continue
             except json.decoder.JSONDecodeError:
-                raise MethodNotAllowed(method=self, detail='Error when trying to convert body to json')
+                logger.error('UpdateReadings - Error when trying to convert body to json')
+                continue
             except binascii.Error:
-                raise MethodNotAllowed(method=self, detail='Error when trying to decode body to ascii')
+                logger.error('UpdateReadings - Error when trying to decode body to ascii')
+                continue
             except FirmwareFactoryException:
-                # action not found during identify_properties
-                return Response(status=status.HTTP_204_NO_CONTENT)
+                logger.warning('UpdateReadings - Action not found during identify_properties')
+                continue
 
             devices = Device.objects.filter(device_host_id=host_id)
 
             for device in devices:
                 device_type_factory = device_factory_instance(device).obtain_factory()
                 obtained_device = device_type_factory(firmware_factory, device)
-
                 try:
-                    device.readings = obtained_device.get_readings()
+                    readings = obtained_device.get_readings()
+                    device.readings = readings
                     device.updated_at = timezone.now()
                     device.save()
-                    print('Device was updated')
-                except DeviceExceptions:
-                    print('Device wasn\'t updated')
-                    continue
-            return Response({
-                'msg': 'success',
-                'data': body_decoded,
-            }, status=status.HTTP_201_CREATED)
+                    # save this event to the database
+                    if save_to_db:
+                        DeviceLog.objects.create(readings=readings, device=device)
 
-    @staticmethod
-    def __decode_body_msg(body):
-        data = base64.b64decode(body)
-        msg = data.decode('ascii')
-        return json.loads(msg)
+                except DeviceException as e:
+                    logger.warning(
+                        'UpdateReadings - Readings were not updated; %s; Device - %s' % (str(e), device.name))
+                    continue
+        return Response({
+            'msg': 'success',
+        }, status=status.HTTP_201_CREATED)
 
 
 class UpdateState(APIView):
@@ -188,16 +274,12 @@ class UpdateState(APIView):
         device = get_object_or_404(Device, pk=device_id)
         if device.type != 'relay':
             raise ValidationError({'error': 'You cannot send the message to sensor type'})
-
-        relay_factory = RelayFactory(device).obtain_factory()
-        relay = relay_factory(None, device)
-
         try:
+            relay_factory = RelayFactory(device).obtain_factory()
+            relay = relay_factory(None, device)
             relay.message(request.data.get('state'))
-        except DeviceExceptions as e:
-            Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            print(e)
+            return Response({'result': 'OK'}, status=status.HTTP_200_OK)
+        except DeviceException as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response({'result': 'OK'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

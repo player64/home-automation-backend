@@ -10,5 +10,8 @@ urlpatterns = [
     path('workspaces/', views.WorkspaceList.as_view()),
     path('workspace/<int:pk>/', views.WorkspaceDetail.as_view()),
     path('update-readings/', views.UpdateReadings.as_view()),
-    path('device-state/<int:device_id>/', views.UpdateState.as_view())
+    path('device-state/<int:device_id>/', views.UpdateState.as_view()),
+    path('single/<int:device_id>/', views.DeviceSingle.as_view()),
+    path('event/<int:pk>/', views.DeviceEventDetail.as_view()),
+    path('event/', views.DeviceEventCreate.as_view()),
 ]

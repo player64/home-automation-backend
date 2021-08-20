@@ -6,5 +6,5 @@ class RelayFactoryException(Exception):
     pass
 
 
-class DeviceExceptions(Exception):
+class DeviceException(Exception):
     pass

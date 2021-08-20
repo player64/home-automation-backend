@@ -20,7 +20,7 @@ class DeviceTypeFactory(ABC):
 class FirmwareIdentifyProperties(TypedDict):
     device_id: str
     factory: DeviceTypeFactory
-    save_to_log: bool
+    save_to_db: bool
 
 
 class FirmwareFactory(ABC):

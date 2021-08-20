@@ -1,18 +1,8 @@
-from random import choices
-
 from django.db import models
-
-from django.utils.translation import gettext_lazy as _
-
-# Create your models here.
-from django.db.models.fields import related
-from sqlalchemy.orm import properties
 
 
 class Workspace(models.Model):
     name = models.CharField(max_length=20)
-
-    # devices = models.ManyToManyField(Device, blank=True)
 
     def __str__(self):
         return self.name
@@ -45,13 +35,63 @@ class Device(models.Model):
     sensor_type = models.CharField(max_length=10, choices=SENSOR_TYPE, default=None, null=True, blank=True)
     updated_at = models.DateTimeField(blank=True, null=True)
     readings = models.JSONField(blank=True, null=True)
-    workspace = models.ForeignKey(Workspace, on_delete=models.DO_NOTHING, blank=True, null=True)
+    workspace = models.ForeignKey(Workspace, on_delete=models.SET_NULL, default=None, blank=True, null=True)
 
     def __str__(self):
         return self.name
 
     class Meta:
         ordering = ['type']
+
+
+class DeviceLog(models.Model):
+    # recent_update.objects.order_by('-created_date')
+    time = models.DateTimeField(auto_now_add=True)
+    readings = models.JSONField()
+    device = models.ForeignKey(Device, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return 'Log for %s' % self.device.name
+
+    class Meta:
+        ordering = ['-time']
+
+
+class DeviceEvent(models.Model):
+    TYPES = (
+        ('time', 'Time'),
+        ('sensor', 'Sensor')
+    )
+    ACTIONS = (
+        ('ON', 'ON'),
+        ('OFF', 'OFF')
+    )
+    RULES = (
+        ('=', '='),
+        ('>', '>'),
+        ('>=', '>='),
+        ('<=', '<='),
+        ('<', '<')
+    )
+
+    name = models.CharField(max_length=80)
+    device = models.ForeignKey(Device, on_delete=models.CASCADE)
+    type = models.CharField(max_length=20, choices=TYPES, default='time')
+    action = models.CharField(max_length=10, choices=ACTIONS, default='OFF')
+    # optional fields for time event type
+    time = models.TimeField(null=True, blank=True)
+
+    # optional fields for sensor type
+    sensor = models.ForeignKey(Device, on_delete=models.CASCADE, null=True, blank=True, related_name='sensor')
+    reading_type = models.CharField(max_length=40, null=True, blank=True)
+    rule = models.CharField(max_length=3, choices=RULES, null=True, blank=True)
+    value = models.IntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ['name']
 
 
 class EventHubMsg(models.Model):
