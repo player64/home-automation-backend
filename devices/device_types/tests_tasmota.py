@@ -38,7 +38,7 @@ class TestTasmota(TestCase):
         properties = self.properties('RESULT')
         firmware = identify_by_payload(properties)
         firmware_factory = firmware(properties, {})
-        identify = firmware_factory.identify_properties()
+        identify = firmware_factory.identify_payload()
 
         self.assertEqual(str(firmware_factory), 'tasmota')
         self.assertEqual(identify['device_id'], 't1')
@@ -48,13 +48,13 @@ class TestTasmota(TestCase):
     def test_identify_parse_error(self):
         with self.assertRaises(FirmwareFactoryException) as context:
             tasmota = TasmotaFactory({'test': 'test'}, {})
-            tasmota.identify_properties()
+            tasmota.identify_payload()
         self.assertEqual(str(context.exception), 'Error when parse the device identify')
 
     def test_identify_action_not_found(self):
         with self.assertRaises(FirmwareFactoryException) as context:
             tasmota = TasmotaFactory(self.properties('INFO'), {})
-            tasmota.identify_properties()
+            tasmota.identify_payload()
         self.assertEqual(str(context.exception), 'Action not found in TasmotaFactory')
 
     def test_relay_readings(self):
@@ -62,7 +62,7 @@ class TestTasmota(TestCase):
         body = self.body('relay')
         firmware = identify_by_payload(properties)
         firmware_factory = firmware(properties, body)
-        identify = firmware_factory.identify_properties()
+        identify = firmware_factory.identify_payload()
 
         # set relay device
         test_device = Device(
@@ -98,7 +98,7 @@ class TestTasmota(TestCase):
         body = self.body('am2301')
         firmware = identify_by_payload(properties)
         firmware_factory = firmware(properties, body)
-        identify = firmware_factory.identify_properties()
+        identify = firmware_factory.identify_payload()
 
         self.assertEqual(identify['device_id'], 't1')
         self.assertTrue(re.search(r'\bSensorFactory\b', str(identify['factory'])))
@@ -127,7 +127,7 @@ class TestTasmota(TestCase):
         properties = self.properties('SENSOR')
         body = self.body('am2301')
         firmware = TasmotaFactory(properties, body)
-        identify = firmware.identify_properties()
+        identify = firmware.identify_payload()
         test_device = Device(
             name='Test',
             device_host_id='t1',
@@ -150,7 +150,7 @@ class TestTasmota(TestCase):
             sensor_type='am2301',
         )
         firmware = TasmotaFactory(properties, body)
-        identify = firmware.identify_properties()
+        identify = firmware.identify_payload()
         device_type_factory_instance = identify['factory']
         with self.assertRaises(DeviceException) as context:
             device_type_factory_instance(test_device).obtain_factory()

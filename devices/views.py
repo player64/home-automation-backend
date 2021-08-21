@@ -123,7 +123,7 @@ class DeviceEventCreate(mixins.CreateModelMixin, generics.GenericAPIView):
 class DeviceList(APIView):
 
     def get(self, request):
-        # @TODO: to remove
+
         """
         Get all devices
         :param request:
@@ -188,6 +188,7 @@ class DeviceDetail(mixins.RetrieveModelMixin,
     serializer_class = DeviceDetailSerializer
 
     def get(self, request, *args, **kwargs):
+        # @TODO: to remove
         return self.retrieve(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):
@@ -226,7 +227,7 @@ class UpdateReadings(APIView):
                 body_decoded = self.__decode_body_msg(body)
                 firmware = identify_by_payload(properties)
                 firmware_factory = firmware(properties, body_decoded)
-                identify = firmware_factory.identify_properties()
+                identify = firmware_factory.identify_payload()
                 device_factory_instance = identify['factory']
                 host_id = identify['device_id']
                 save_to_db = identify['save_to_db']

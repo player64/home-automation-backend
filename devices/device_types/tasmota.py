@@ -7,7 +7,7 @@ from azure.iot.hub import IoTHubRegistryManager
 
 
 class TasmotaFactory(FirmwareFactory):
-    def identify_properties(self) -> FirmwareIdentifyProperties:
+    def identify_payload(self) -> FirmwareIdentifyProperties:
         """
         Method used to parse the message from Azure IoT Hub sent by Tasmota device
         :return: {
@@ -32,14 +32,14 @@ class TasmotaFactory(FirmwareFactory):
 
         try:
             factory = _action_types[action]
+            return {
+                'device_id': host_device_id,
+                'factory': factory,
+                'save_to_db': (action == 'RESULT')
+            }
         except KeyError:
             raise FirmwareFactoryException('Action not found in TasmotaFactory')
 
-        return {
-            'device_id': host_device_id,
-            'factory': factory,
-            'save_to_db': (action == 'RESULT')
-        }
 
     def __str__(self):
         return 'tasmota'

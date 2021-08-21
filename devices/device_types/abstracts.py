@@ -29,7 +29,7 @@ class FirmwareFactory(ABC):
         self.__body: dict = body
 
     @abstractmethod
-    def identify_properties(self) -> FirmwareIdentifyProperties:
+    def identify_payload(self) -> FirmwareIdentifyProperties:
         pass
 
     @property
