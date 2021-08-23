@@ -74,11 +74,26 @@ class TestsWorkspaces(APITestCase):
         Device.objects.create(name='Test')
         workspace = Workspace(name='Test workspace')
         workspace.save()
-        response = self.client.get('/api/v1/devices/workspace/%i/' % workspace.pk)
+        response = self.client.get('/api/v1/devices/workspace/single/%i/' % workspace.pk)
         content = response.json()
-        print(content)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(content['name'], 'Test workspace')
+        self.assertTrue('devices' in content)
+
+    def test_get_workspaces_with_many_devices(self):
+        workspace1 = Workspace.objects.create(name='Workspace 1')
+        workspace2 = Workspace.objects.create(name='Workspace 2')
+        # add 10 devices
+        for i in range(1, 11):
+            Device.objects.create(name='Relay %i' % i, type='relay', gpio=i, workspace=workspace1)
+            Device.objects.create(name='Sensor %i' % i, type='sensor', sensor_type='am2301', workspace=workspace2)
+
+        response = self.client.get('/api/v1/devices/workspace/single/%i/' % workspace1.pk)
+        content = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(content['name'], 'Workspace 1')
+        self.assertTrue('devices' in content)
+        self.assertEqual(len(content['devices']), 10)
 
     def test_update_workspace(self):
         workspace = Workspace(name='Test workspace')

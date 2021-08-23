@@ -40,7 +40,6 @@ class TasmotaFactory(FirmwareFactory):
         except KeyError:
             raise FirmwareFactoryException('Action not found in TasmotaFactory')
 
-
     def __str__(self):
         return 'tasmota'
 
@@ -68,13 +67,19 @@ class RelayTasmota(AbstractDevice):
         :return: None
         """
         connection_secret = os.environ.get('CONNECTION_STRING')
-        if not connection_secret:
-            raise DeviceException(
-                'Azure CONNECTION_STRING secret not found. Add CONNECTION_STRING to your environment.')
+        # if not connection_secret:
+        #     raise DeviceException(
+        #         'Azure CONNECTION_STRING secret not found. Add CONNECTION_STRING to your environment.')
         registry_manager = IoTHubRegistryManager(connection_secret)
         props = {}
         props.update(TOPIC='/power%d' % self.device.gpio)
-        registry_manager.send_c2d_message(self.device.device_host_id, state, properties=props)
+        try:
+            registry_manager.send_c2d_message(self.device.device_host_id, state, properties=props)
+            return {
+                'result': 'OK'
+            }
+        except Exception as e:
+            raise DeviceException(str(e))
 
 
 class AM2301Tasmota(AbstractDevice):

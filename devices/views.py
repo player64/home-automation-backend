@@ -1,4 +1,5 @@
 import binascii
+from datetime import datetime
 import json
 from urllib.request import Request
 
@@ -89,6 +90,33 @@ class WorkspaceDetail(mixins.RetrieveModelMixin,
         return self.destroy(request, *args, **kwargs)
 
 
+class WorkspaceSingleWithDevices(APIView):
+    def get(self, request, workspace_id):
+        workspace = get_object_or_404(Workspace, pk=workspace_id)
+        w_serializer = WorkspaceSerializer(workspace)
+        devices = Device.objects.filter(workspace__pk=workspace.pk)
+
+        # for devices used the same serializer only two same fields wanted.
+        d_serializer = WorkspaceSerializer(devices, many=True)
+
+        return Response({
+            **w_serializer.data,
+            'devices': d_serializer.data
+        })
+
+
+class DeviceSearch(APIView):
+    def get(self, request):
+        search_by = request.query_params.get('name')
+        if len(search_by) < 2:
+            raise ValidationError('You must enter at least 2 character to search.')
+
+        devices = Device.objects.filter(name__contains=search_by)
+        # for devices used the same serializer only two same fields wanted.
+        d_serializer = WorkspaceSerializer(devices, many=True)
+        return Response(d_serializer.data)
+
+
 class DeviceEventDetail(mixins.RetrieveModelMixin, mixins.UpdateModelMixin,
                         mixins.DestroyModelMixin, generics.GenericAPIView):
     queryset = DeviceEvent.objects.all()
@@ -123,7 +151,6 @@ class DeviceEventCreate(mixins.CreateModelMixin, generics.GenericAPIView):
 class DeviceList(APIView):
 
     def get(self, request):
-
         """
         Get all devices
         :param request:
@@ -157,7 +184,10 @@ class DeviceSingle(APIView):
         """
         device = get_object_or_404(Device, pk=device_id)
         d_serializer = DeviceDetailSerializer(device)
-        logs = DeviceLog.objects.filter(device=device)
+        # filter logs to today
+        _today = datetime.today().strftime('%Y-%m-%d')
+        logs = DeviceLog.objects.filter(device=device, time__contains=str(_today))
+
         l_serializer = DeviceLogSerializer(logs, many=True)
         workspaces = Workspace.objects.all()
         w_serializer = WorkspaceSerializer(workspaces, many=True)
@@ -278,9 +308,26 @@ class UpdateState(APIView):
         try:
             relay_factory = RelayFactory(device).obtain_factory()
             relay = relay_factory(None, device)
-            relay.message(request.data.get('state'))
-            return Response({'result': 'OK'}, status=status.HTTP_200_OK)
+            result = relay.message(request.data.get('state'))
+            return Response(result, status=status.HTTP_200_OK)
         except DeviceException as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# add to the report
+class DeviceLogByDate(APIView):
+    def get(self, request, device_id):
+        device = get_object_or_404(Device, pk=device_id)
+        _date = request.query_params.get('date')
+        if not _date:
+            _date = datetime.today().strftime('%Y-%m-%d')
+        try:
+            datetime.strptime(_date, '%Y-%m-%d')
+        except ValueError:
+            return Response({'error': 'The date format must be as follows Y-m-d'}, status=status.HTTP_400_BAD_REQUEST)
+
+        logs = DeviceLog.objects.filter(device=device, time__contains=str(_date))
+        serialized_data = DeviceLogSerializer(logs, many=True)
+        return Response(serialized_data.data)

@@ -1,7 +1,9 @@
 import base64
 import json
+from datetime import datetime
 
 from django.contrib.auth.models import User
+from django.utils.timezone import make_aware
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 from devices.models import Device, Workspace, DeviceLog, DeviceEvent
@@ -35,6 +37,14 @@ class TestDevices(APITestCase):
         for i in range(1, 11):
             DeviceLog.objects.create(readings={'state': 'on'}, device=device)
             Workspace.objects.create(name='Workspace %d' % i)
+
+        # add some other logs with the past date
+        for i in range(1, 30):
+            _date = '2021-05-%d' % i
+            log1 = DeviceLog.objects.create(device=device, readings={'state': 'OFF'})
+            # rewrite date
+            log1.time = make_aware(datetime.strptime(_date, '%Y-%m-%d'))
+            log1.save()
 
         # add one log to check filter is working as expected
         other_dev = Device(name='Test device', device_host_id='t1')
@@ -125,6 +135,18 @@ class TestDevices(APITestCase):
         json_response = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(10, len(json_response))
+
+    def test_search_devices(self):
+        names = ['Device', 'Sensor', 'Relay1', 'Relay2', 'Relay3']
+        for name in names:
+            Device.objects.create(name=name, type='relay')
+        response = self.client.get('/api/v1/devices/search/?name=re')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 3)
+
+    def test_search_with_one_character(self):
+        response = self.client.get('/api/v1/devices/search/?name=k')
+        self.assertEqual(response.status_code, 400)
 
     def test_update_readings_for_multiple_devices(self):
         usr = User.objects.create_user(username='username2', password='password')
@@ -302,6 +324,7 @@ class TestDevices(APITestCase):
     #     response = self.client.post('/api/v1/devices/device-state/%d/' % test_device.pk, {
     #         'state': 'on'
     #     })
+    #     print(response.json())
     #     self.assertEqual(response.status_code, 200)
     #     self.assertEqual(response.json(), {'result': 'OK'})
 
