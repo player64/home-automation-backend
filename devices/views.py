@@ -250,6 +250,8 @@ class UpdateReadings(APIView):
             devices = Device.objects.filter(device_host_id=host_id)
 
             for device in devices:
+                logger.info('UpdateReadings GPIO - %s' % device.gpio)
+                logger.info('UpdateReadings SENSOR TYPE - %s' % device.sensor_type)
                 device_type_factory = device_factory_instance(device).obtain_factory()
                 obtained_device = device_type_factory(firmware_factory, device)
                 try:
