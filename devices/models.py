@@ -19,7 +19,6 @@ class Device(models.Model):
 
     FIRMWARE = (
         ('tasmota', 'Tasmota'),
-        ('simulated', 'Simulated')
     )
 
     SENSOR_TYPE = (

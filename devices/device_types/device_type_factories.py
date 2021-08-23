@@ -32,7 +32,8 @@ class SensorFactory(DeviceTypeFactory):
             factory = sensor_types[self.device.sensor_type]
             return factory().obtain_factory(self.device.firmware)
         except KeyError:
-            raise DeviceException('Sensor factory not found in SensorFactory')
+            raise DeviceException('Sensor factory not found in SensorFactory; Sensor Type: %s; Firmware: %s' % (
+                self.device.sensor_type, self.device.firmware))
 
     def __repr__(self):
         return 'SensorFactory'
