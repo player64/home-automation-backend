@@ -16,12 +16,9 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from users import views
-from rest_framework_simplejwt import views as jwt_views
 from devices import urls as devices_urls
 from users import urls as user_urls
-from devices import views as dash_view
-from django.conf.urls.static import static
-from django.conf import settings
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/protected/', views.HelloView.as_view(), name='hello'),
@@ -30,4 +27,3 @@ urlpatterns = [
     path('api/v1/devices/', include(devices_urls), name='devices'),
     path('api/v1/users/', include(user_urls), name='users'),
 ]
-# + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

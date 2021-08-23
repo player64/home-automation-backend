@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django_rest_passwordreset',
     'rest_framework_simplejwt.token_blacklist',
     'rest_framework.authtoken',
+    'background_task',
     # Local Apps
     'users',
     'devices'
