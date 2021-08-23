@@ -145,7 +145,7 @@ class TestDevices(APITestCase):
                 },
             }
         }]
-        response = self.client.post('/api/v1/devices/update-readings/', json.dumps(data),
+        response = self.client.post('/api/v1/devices/eventhub/', json.dumps(data),
                                     content_type='application/json')
 
         self.assertEqual(response.status_code, 201)
@@ -187,7 +187,7 @@ class TestDevices(APITestCase):
                 },
             }
         }]
-        response = self.client.post('/api/v1/devices/update-readings/', json.dumps(data),
+        response = self.client.post('/api/v1/devices/eventhub/', json.dumps(data),
                                     content_type='application/json')
         self.assertEqual(response.status_code, 201)
 
@@ -218,7 +218,7 @@ class TestDevices(APITestCase):
             }
         }]
 
-        response = self.client.post('/api/v1/devices/update-readings/', json.dumps(data),
+        response = self.client.post('/api/v1/devices/eventhub/', json.dumps(data),
                                     content_type='application/json')
         self.assertEqual(response.status_code, 201)
 
@@ -259,7 +259,7 @@ class TestDevices(APITestCase):
             }
         }]
 
-        response = self.client.post('/api/v1/devices/update-readings/', json.dumps(data),
+        response = self.client.post('/api/v1/devices/eventhub/', json.dumps(data),
                                     content_type='application/json')
         self.assertEqual(response.status_code, 201)
 
@@ -285,7 +285,7 @@ class TestDevices(APITestCase):
                 },
             }
         }
-        response = self.client.post('/api/v1/devices/update-readings/', json.dumps(data),
+        response = self.client.post('/api/v1/devices/eventhub/', json.dumps(data),
                                     content_type='application/json')
         self.assertEqual(response.status_code, 405)
 
