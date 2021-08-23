@@ -50,10 +50,9 @@ class TestDeviceEvents(APITestCase):
             'device': device.pk,
             'type': 'time',
             'action': 'OFF',
-            # 'time': '17:32'
+            'time': '17:32'
         })
         content = response.json()
-        print(content)
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(content['name'], 'Event')
