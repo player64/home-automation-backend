@@ -247,7 +247,7 @@ class UpdateReadings(APIView):
                 logger.warning('UpdateReadings - Action not found during identify_properties')
                 continue
 
-            logger.info('UpdateReadings Body %s' % str(body))
+            logger.info('UpdateReadings Body %s' % str(body_decoded))
             logger.info('UpdateReadings Properties %s' % str(properties))
             devices = Device.objects.filter(device_host_id=host_id)
 
