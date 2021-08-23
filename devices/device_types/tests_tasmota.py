@@ -138,7 +138,7 @@ class TestTasmota(TestCase):
         with self.assertRaises(DeviceException) as context:
             device_type_factory_instance(test_device).obtain_factory()
         self.assertEqual(str(context.exception),
-                         'Sensor factory not found in SensorFactory; Sensor Type: tests; Firmware: tasmota')
+                         'Sensor factory not found in SensorFactory')
 
     def test_sensor_firmware_exception(self):
         properties = self.properties('SENSOR')

@@ -247,16 +247,12 @@ class UpdateReadings(APIView):
                 logger.warning('UpdateReadings - Action not found during identify_properties')
                 continue
 
-            logger.info('UpdateReadings Body %s' % str(body_decoded))
-            logger.info('UpdateReadings Properties %s' % str(properties))
             devices = Device.objects.filter(device_host_id=host_id)
 
             for device in devices:
-                logger.info('UpdateReadings GPIO - %s' % device.gpio)
-                logger.info('UpdateReadings SENSOR TYPE - %s' % device.sensor_type)
-                device_type_factory = device_factory_instance(device).obtain_factory()
-                obtained_device = device_type_factory(firmware_factory, device)
                 try:
+                    device_type_factory = device_factory_instance(device).obtain_factory()
+                    obtained_device = device_type_factory(firmware_factory, device)
                     readings = obtained_device.get_readings()
                     device.readings = readings
                     device.updated_at = timezone.now()

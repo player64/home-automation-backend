@@ -160,10 +160,12 @@ class TestDevices(APITestCase):
         })
 
     def test_update_multiple_readings_for_multiple_devices(self):
-        # create 10 devices
+        # create 10 relays and sensors
         for i in range(1, 11):
-            Device.objects.create(name='Test %i' % i, device_host_id='t1', type='relay', firmware='tasmota',
-                                  gpio=i)
+            Device.objects.create(name='Test relay %i' % i, device_host_id='t1', type='relay', gpio=i)
+
+        for i in range(1, 11):
+            Device.objects.create(name='Test sensor %i' % i, device_host_id='t1', type='sensor', sensor_type='am2301')
 
         # create multiple data
         data = [{
@@ -258,6 +260,10 @@ class TestDevices(APITestCase):
                 },
             }
         }]
+
+        # add more devices relays
+        for i in range(0, 7):
+            Device.objects.create(name='Test device relay', gpio=i, device_host_id='wemos-t1', type='relay')
 
         response = self.client.post('/api/v1/devices/eventhub/', json.dumps(data),
                                     content_type='application/json')

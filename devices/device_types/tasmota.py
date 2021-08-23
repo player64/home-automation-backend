@@ -58,6 +58,8 @@ class RelayTasmota(AbstractDevice):
             }
         except KeyError:
             raise DeviceException('Cannot read the readings from tasmota relay')
+        except TypeError:
+            raise DeviceException('GPIO is None type')
 
     def message(self, state: str):
         """
