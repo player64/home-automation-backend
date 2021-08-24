@@ -40,10 +40,10 @@ class TestDevices(APITestCase):
 
         # add some other logs with the past date
         for i in range(1, 30):
-            _date = '2021-05-%d' % i
+            _date = '2021-05-%d 19:00:00' % i
             log1 = DeviceLog.objects.create(device=device, readings={'state': 'OFF'})
             # rewrite date
-            log1.time = make_aware(datetime.strptime(_date, '%Y-%m-%d'))
+            log1.time = make_aware(datetime.strptime(_date, '%Y-%m-%d %H:%M:%S'))
             log1.save()
 
         # add one log to check filter is working as expected
@@ -64,25 +64,29 @@ class TestDevices(APITestCase):
     def test_get_device_with_events(self):
         device = Device(name='Test device', device_host_id='t1', type='relay')
         device.save()
-        # add five events
+        # add five events and sensors
         for i in range(1, 6):
             event = DeviceEvent(name='Event %d' % i, device=device, type='time', action='ON', time='18:30')
             event.save()
+            Device.objects.create(name='Sensor test', device_host_id='test', type='sensor')
+
         response = self.client.get('/api/v1/devices/single/%i/' % device.pk)
         content = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertTrue('events' in content)
         self.assertEqual(len(content['events']), 5)
         self.assertEqual(content['name'], 'Test device')
+        self.assertEqual(len(content['sensors']), 5)
 
     def test_get_device_sensor(self):
-        # check json structure it shouldn't return events
+        # check json structure it shouldn't return events and sensors
         device = Device(name='Test device', device_host_id='t1', type='sensor')
         device.save()
         response = self.client.get('/api/v1/devices/single/%i/' % device.pk)
         content = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertFalse('events' in content)
+        self.assertFalse('sensors' in content)
         self.assertTrue('workspaces' in content)
         self.assertTrue('logs' in content)
 
@@ -147,6 +151,19 @@ class TestDevices(APITestCase):
     def test_search_with_one_character(self):
         response = self.client.get('/api/v1/devices/search/?name=k')
         self.assertEqual(response.status_code, 400)
+
+    def test_get_device_readings(self):
+        readings = {
+            'state': 'ON'
+        }
+        _date = '2021-08-24 10:00:00'
+        updated_at = make_aware(datetime.strptime(_date, '%Y-%m-%d %H:%M:%S'))
+        device = Device.objects.create(name='Test Relay', readings=readings, updated_at=updated_at)
+        response = self.client.get('/api/v1/devices/readings/%i/' % device.pk)
+        content = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(content['readings'], readings)
+        self.assertEqual(content['updated_at'], str(updated_at).replace(' ', 'T'))
 
     def test_update_readings_for_multiple_devices(self):
         usr = User.objects.create_user(username='username2', password='password')

@@ -15,7 +15,7 @@ from devices.device_types.exceptions import FirmwareFactoryException, DeviceExce
 
 from devices.models import Device, Workspace, DeviceLog, DeviceEvent
 from devices.serializers import DeviceSerializer, WorkspaceSerializer, DeviceDetailSerializer, DeviceLogSerializer, \
-    DeviceEventSerializer
+    DeviceEventSerializer, DeviceReadingSerializer
 from django.utils import timezone
 import logging
 
@@ -202,8 +202,14 @@ class DeviceSingle(APIView):
             # for relay only events are available
             events = DeviceEvent.objects.filter(device=device)
             e_serializer = DeviceEventSerializer(events, many=True)
+            # add sensor list that would be used on the event tab
+            sensors = Device.objects.filter(type='sensor')
+            # needed only pk and name workspace serializer is sufficient
+            sensors_serializer = WorkspaceSerializer(sensors, many=True)
+
             content.update({
-                'events': e_serializer.data
+                'events': e_serializer.data,
+                'sensors': sensors_serializer.data
             })
 
         return Response(content)
@@ -227,6 +233,17 @@ class DeviceDetail(mixins.RetrieveModelMixin,
 
     def delete(self, request, *args, **kwargs):
         return self.destroy(request, *args, **kwargs)
+
+
+class DeviceReadings(APIView):
+    def get(self, request, device_id):
+        """
+        Method for getting a device readings
+        :return: Response
+        """
+        device = get_object_or_404(Device, pk=device_id)
+        serializer = DeviceReadingSerializer(device)
+        return Response(serializer.data)
 
 
 class UpdateReadings(APIView):
