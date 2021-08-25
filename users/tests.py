@@ -1,9 +1,13 @@
 import json
+from unittest.mock import Mock, patch
+
 from django.contrib.auth.models import User
 from django.core import mail
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 import urllib.parse as urlparse
+
+from users.views import ResetPasswordView
 
 
 class TestUsers(APITestCase):
@@ -52,22 +56,27 @@ class TestUsers(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {'message': 'Hello, World!'})
 
-    def test_password_reset_resets_password_success(self):
+    @patch.object(ResetPasswordView, '_validate_captcha')
+    def test_password_reset_resets_password_success(self, mock_get_recaptcha):
+        # add mock to the recaptcha_response
+        mock_get_recaptcha.return_value = True
+
         User.objects.create_user(email='email@email.com', username='username', password='password')
         login = self.client.post('/api/v1/users/password-reset/', {
-            'email': 'email@email.com'
+            'email': 'email@email.com',
+            'recaptcha_response': 'captcha'
         })
         self.assertEqual(login.json(), {'status': 'OK'})
         self.assertEqual(len(mail.outbox), 1)
         message = mail.outbox[0]
         parsed = urlparse.urlparse(message.body)
         token = urlparse.parse_qs(parsed.query)['token'][0]
-
         # change the password
-        response = self.client.post('/api/v1/users/password-reset/confirm/', {
+        response = self.client.put('/api/v1/users/password-reset/', {
             'token': token,
             'password': 'changed_password'
         })
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {'status': 'OK'})
         user = User.objects.get(username='username')
         self.assertTrue(user.check_password('changed_password'))
@@ -179,6 +188,3 @@ class TestUsers(APITestCase):
             'errors': 'You cannot delete yourself'
         })
         self.assertEqual(User.objects.all().count(), 1)
-
-
-

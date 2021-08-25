@@ -165,6 +165,7 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
+DJANGO_REST_PASSWORDRESET_NO_INFORMATION_LEAKAGE = True
 
 # add ssl mode
 if os.environ.get('ENV') == 'production':

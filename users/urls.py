@@ -9,5 +9,7 @@ urlpatterns = [
     path('login/', jwt_views.TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('logout/', views.ApiLogout.as_view(), name='logout'),
     path('token/refresh/', jwt_views.TokenRefreshView.as_view(), name='token_refresh'),
-    path('password-reset/', include('django_rest_passwordreset.urls', namespace='password_reset'))
+    path('password-reset/', views.ResetPasswordView.as_view()),
+    # comment above and uncomment below if exception happened during resetting the password
+    # path('password-reset/', include('django_rest_passwordreset.urls', namespace='password_reset')),
 ]
