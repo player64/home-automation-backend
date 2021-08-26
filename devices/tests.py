@@ -1,7 +1,10 @@
 import base64
 import json
+import os
 from datetime import datetime
+from unittest.mock import patch
 
+from azure.iot.hub import IoTHubRegistryManager
 from django.contrib.auth.models import User
 from django.utils.timezone import make_aware
 from rest_framework.authtoken.models import Token
@@ -334,16 +337,19 @@ class TestDevices(APITestCase):
                                     content_type='application/json')
         self.assertEqual(response.status_code, 405)
 
-    # def test_change_device_state(self):
-    #     # @TODO mock it
-    #     test_device = Device.objects.create(name='Test', device_host_id='wemos-t1', type='relay', firmware='tasmota',
-    #                                         gpio=1)
-    #     response = self.client.post('/api/v1/devices/device-state/%d/' % test_device.pk, {
-    #         'state': 'on'
-    #     })
-    #     print(response.json())
-    #     self.assertEqual(response.status_code, 200)
-    #     self.assertEqual(response.json(), {'result': 'OK'})
+    @patch.object(IoTHubRegistryManager, 'send_c2d_message')
+    @patch.object(os.environ, 'get')
+    def test_change_device_state(self, mock_env_connection_string, mock_send_c2d_message):
+        # keep this key format otherwise will throw exception
+        mock_env_connection_string.return_value = 'HostName=test;SharedAccessKeyName=test;SharedAccessKey=test'
+        mock_send_c2d_message.return_value = ''
+        test_device = Device.objects.create(name='Test', device_host_id='test', type='relay',
+                                            gpio=1)
+        response = self.client.post('/api/v1/devices/device-state/%d/' % test_device.pk, {
+            'state': 'on'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'state': 'on'})
 
     def test_change_sensor_state(self):
         Device.objects.create(name='Test', device_host_id='wemos-t1', type='sensor', firmware='tasmota',

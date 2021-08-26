@@ -12,7 +12,7 @@ class WorkspaceSerializer(serializers.ModelSerializer):
 class DeviceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Device
-        fields = ['pk', 'name', 'type', 'updated_at', 'readings']
+        fields = ['pk', 'name', 'type', 'updated_at', 'readings', 'sensor_type']
 
 
 class DeviceLogSerializer(serializers.ModelSerializer):
