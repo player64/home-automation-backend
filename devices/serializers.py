@@ -28,7 +28,8 @@ class DeviceDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Device
-        fields = ['name', 'type', 'firmware', 'gpio', 'sensor_type', 'updated_at', 'readings', 'workspace']
+        # fields = ['name', 'type', 'firmware', 'gpio', 'sensor_type', 'updated_at', 'readings', 'workspace']
+        fields = ['pk', 'name', 'type', 'firmware', 'updated_at', 'device_host_id', 'gpio', 'sensor_type', 'updated_at', 'workspace']
 
 
 class DeviceEventSerializer(serializers.ModelSerializer):

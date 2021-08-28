@@ -47,7 +47,7 @@ class TestDeviceLogs(APITestCase):
         # check with custom date
         response = self.client.get('/api/v1/devices/log/%i/?date=2021-05-23' % dev2.pk)
         response_json = response.json()
-
+        print(response_json)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response_json), 1)
 
