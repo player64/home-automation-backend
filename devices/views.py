@@ -213,7 +213,6 @@ class DeviceSingle(APIView):
             })
 
         return Response(content)
-    # @TODO: Add post method here to find by name
 
 
 class DeviceDetail(mixins.RetrieveModelMixin,
@@ -341,10 +340,11 @@ class DeviceLogByDate(APIView):
         if not _date:
             _date = datetime.today().strftime('%Y-%m-%d')
         try:
-            datetime.strptime(_date, '%Y-%m-%d')
+            converted_date = datetime.strptime(_date, '%Y-%m-%d')
         except ValueError:
             return Response({'error': 'The date format must be as follows Y-m-d'}, status=status.HTTP_400_BAD_REQUEST)
 
-        logs = DeviceLog.objects.filter(device=device, time__contains=str(_date))
+        logs = DeviceLog.objects.filter(device=device, time__year=converted_date.year, time__month=converted_date.month,
+                                        time__day=converted_date.day)
         serialized_data = DeviceLogSerializer(logs, many=True)
         return Response(serialized_data.data)
