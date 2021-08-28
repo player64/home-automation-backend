@@ -99,6 +99,7 @@ class TestDevices(APITestCase):
         device.save()
         response = self.client.put('/api/v1/devices/%i/' % device.pk, {
             'name': 'Test',
+            'device_host_id': 'test',
             'type': 'sensor',
             'workspace': w.pk
         })
