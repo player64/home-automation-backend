@@ -15,7 +15,7 @@ urlpatterns = [
     path('event/<int:pk>/', views.DeviceEventDetail.as_view()),
     path('event/', views.DeviceEventCreate.as_view()),
     path('log/<int:device_id>/', views.DeviceLogByDate.as_view()),
-    path('workspace/single/<int:workspace_id>/', views.WorkspaceSingleWithDevices().as_view()),
+    path('workspace/single/<int:workspace_id>/', views.WorkspaceSingle.as_view()),
     path('search/', views.DeviceSearch.as_view()),
     path('readings/<int:device_id>/', views.DeviceReadings.as_view()),
 ]

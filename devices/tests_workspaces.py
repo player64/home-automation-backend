@@ -1,3 +1,5 @@
+import json
+
 from rest_framework.test import APITestCase
 
 from devices.models import Workspace, Device
@@ -98,12 +100,31 @@ class TestsWorkspaces(APITestCase):
     def test_update_workspace(self):
         workspace = Workspace(name='Test workspace')
         workspace.save()
-        response = self.client.put('/api/v1/devices/workspace/%i/' % workspace.pk, {
+        response = self.client.put('/api/v1/devices/workspace/single/%i/' % workspace.pk, {
             'name': 'Test'
         })
         self.assertEqual(response.status_code, 200)
         ws = Workspace.objects.get(pk=1)
         self.assertEqual(ws.name, 'Test')
+
+    def test_update_workspace_with_devices(self):
+        # create five devices
+        devices = []
+        for i in range(1, 6):
+            d = Device.objects.create(name='Test')
+            devices.append(d.pk)
+        workspace = Workspace(name='Test workspace')
+        workspace.save()
+
+        response = self.client.put('/api/v1/devices/workspace/single/%i/' % workspace.pk, json.dumps({
+            'name': 'Test',
+            'devices': devices
+        }), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        ws = Workspace.objects.get(pk=1)
+        self.assertEqual(ws.name, 'Test')
+        workspace_devices = Device.objects.filter(workspace__pk=workspace.pk)
+        self.assertEqual(len(workspace_devices), 5)
 
     def test_update_workspace_with_empty_name(self):
         workspace = Workspace(name='Test workspace')
@@ -127,6 +148,40 @@ class TestsWorkspaces(APITestCase):
         })
         self.assertEqual(response.status_code, 201)
         self.assertEqual(Workspace.objects.all().count(), 1)
+
+    def test_create_workspace_with_devices_attached(self):
+        # create five devices
+        devices = []
+        for i in range(1, 6):
+            d = Device.objects.create(name='Test')
+            devices.append(d.pk)
+        response = self.client.post('/api/v1/devices/workspaces/', json.dumps({
+            'name': 'Test',
+            'devices': devices
+        }), content_type='application/json')
+        self.assertEqual(response.status_code, 201)
+        workspace_devices = Device.objects.filter(workspace__pk=response.json()['pk'])
+        self.assertEqual(len(workspace_devices), 5)
+
+    def test_create_workspace_with_string_id(self):
+        response = self.client.post('/api/v1/devices/workspaces/', json.dumps({
+            'name': 'Test',
+            'devices': ['test']
+        }), content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {
+            'error': 'The device ID isn\'t numeric'
+        })
+
+    def test_create_workspace_with_device_not_existing(self):
+        response = self.client.post('/api/v1/devices/workspaces/', json.dumps({
+            'name': 'Test',
+            'devices': [99]
+        }), content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {
+            'error': 'The device doesn\'t exist'
+        })
 
     def test_get_workspaces(self):
         # create 10 workspaces

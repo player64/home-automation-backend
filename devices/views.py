@@ -18,6 +18,7 @@ from devices.serializers import DeviceSerializer, WorkspaceSerializer, DeviceDet
     DeviceEventSerializer, DeviceReadingSerializer
 from django.utils import timezone
 import logging
+from django.core.exceptions import ObjectDoesNotExist
 
 logger = logging.getLogger('django')
 
@@ -57,6 +58,28 @@ class DashboardView(APIView):
         return Response(content)
 
 
+def attach_device_list_to_workspace(devices, workspace):
+    if not devices:
+        return
+    try:
+        for device_id in devices:
+            device = Device.objects.get(pk=device_id)
+            device.workspace = workspace
+            device.save()
+    except ValueError:
+        return {
+            'error': 'The device ID isn\'t numeric'
+        }
+    except ObjectDoesNotExist:
+        return {
+            'error': 'The device doesn\'t exist'
+        }
+    except Exception as error:
+        return {
+            'error': str(error)
+        }
+
+
 class WorkspaceList(APIView):
     def get(self, request):
         workspaces = Workspace.objects.all()
@@ -64,9 +87,18 @@ class WorkspaceList(APIView):
         return Response(serializer.data)
 
     def post(self, request):
+        # add new workspace
         serializer = WorkspaceSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            workspace = serializer.save()
+            try:
+                # attach created workspace to devices
+                devices = request.data.get('devices')
+                attach_to_devices = attach_device_list_to_workspace(devices, workspace)
+                if attach_to_devices:
+                    return Response(attach_to_devices, status=status.HTTP_400_BAD_REQUEST)
+            except ValueError:
+                pass
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -90,7 +122,7 @@ class WorkspaceDetail(mixins.RetrieveModelMixin,
         return self.destroy(request, *args, **kwargs)
 
 
-class WorkspaceSingleWithDevices(APIView):
+class WorkspaceSingle(APIView):
     def get(self, request, workspace_id):
         workspace = get_object_or_404(Workspace, pk=workspace_id)
         w_serializer = WorkspaceSerializer(workspace)
@@ -103,6 +135,22 @@ class WorkspaceSingleWithDevices(APIView):
             **w_serializer.data,
             'devices': d_serializer.data
         })
+
+    def put(self, request, workspace_id):
+        workspace = get_object_or_404(Workspace, pk=workspace_id)
+        serializer = WorkspaceSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.update(workspace, serializer.data)
+            try:
+                # attach created workspace to devices
+                devices = request.data.get('devices')
+                attach_to_devices = attach_device_list_to_workspace(devices, workspace)
+                if attach_to_devices:
+                    return Response(attach_to_devices, status=status.HTTP_400_BAD_REQUEST)
+            except ValueError:
+                pass
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class DeviceSearch(APIView):
@@ -166,7 +214,7 @@ class DeviceList(APIView):
         :param request:
         :return: Response
         """
-        serializer = DeviceSerializer(data=request.data)
+        serializer = DeviceDetailSerializer(data=request.data)
 
         if serializer.is_valid():
             serializer.save()
