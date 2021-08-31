@@ -126,6 +126,18 @@ class TestsWorkspaces(APITestCase):
         workspace_devices = Device.objects.filter(workspace__pk=workspace.pk)
         self.assertEqual(len(workspace_devices), 5)
 
+    def test_update_workspace_unattached_devices(self):
+        workspace = Workspace.objects.create(name='Workspace')
+        device = Device.objects.create(name='Test', workspace=workspace)
+
+        self.assertEqual(len(Device.objects.filter(workspace__pk=workspace.pk)), 1)
+        response = self.client.put('/api/v1/devices/workspace/single/%i/' % workspace.pk, json.dumps({
+            'name': 'Test',
+            'devices': []
+        }), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(Device.objects.filter(workspace__pk=workspace.pk)), 0)
+
     def test_update_workspace_with_empty_name(self):
         workspace = Workspace(name='Test workspace')
         workspace.save()
@@ -162,6 +174,9 @@ class TestsWorkspaces(APITestCase):
         self.assertEqual(response.status_code, 201)
         workspace_devices = Device.objects.filter(workspace__pk=response.json()['pk'])
         self.assertEqual(len(workspace_devices), 5)
+
+
+
 
     def test_create_workspace_with_string_id(self):
         response = self.client.post('/api/v1/devices/workspaces/', json.dumps({

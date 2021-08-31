@@ -59,9 +59,14 @@ class DashboardView(APIView):
 
 
 def attach_device_list_to_workspace(devices, workspace):
-    if not devices:
-        return
     try:
+        attached_devices = Device.objects.filter(workspace=workspace)
+        # clear previously attached devices
+        for device in attached_devices:
+            device.workspace = None
+            device.save()
+        if not devices:
+            return
         for device_id in devices:
             device = Device.objects.get(pk=device_id)
             device.workspace = workspace
@@ -275,7 +280,6 @@ class DeviceDetail(mixins.RetrieveModelMixin,
         return self.retrieve(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):
-        # print(request.data.get('sensor_type'))
         return self.update(request, *args, **kwargs)
 
     def delete(self, request, *args, **kwargs):
