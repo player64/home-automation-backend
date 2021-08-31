@@ -127,7 +127,7 @@ class TestDevices(APITestCase):
         self.assertEqual(Device.objects.all().count(), 0)
         response = self.client.post('/api/v1/devices/details/', {
             'name': 'Test',
-            'devices_host_id': 'test',
+            'device_host_id': 'test',
             'type': 'sensor',
             'sensor_type': 'am2301'
         })
