@@ -175,9 +175,6 @@ class TestsWorkspaces(APITestCase):
         workspace_devices = Device.objects.filter(workspace__pk=response.json()['pk'])
         self.assertEqual(len(workspace_devices), 5)
 
-
-
-
     def test_create_workspace_with_string_id(self):
         response = self.client.post('/api/v1/devices/workspaces/', json.dumps({
             'name': 'Test',

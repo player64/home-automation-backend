@@ -9,6 +9,12 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['pk', 'username', 'email']
 
 
+class NewUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password']
+
+
 class UserPasswordChangeSerializer(serializers.Serializer):
     new_password = serializers.CharField(max_length=128, write_only=True, required=True)
 

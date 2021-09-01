@@ -131,6 +131,11 @@ class TestUsers(APITestCase):
         self.assertEqual(response.status_code, 201)
         # authentication creates a new user so it should be two users in total
         self.assertEqual(User.objects.all().count(), 2)
+        self.assertTrue('pk' in response.json())
+        user = User.objects.get(pk=response.json()['pk'])
+        self.assertFalse('password' in response.json())
+        self.assertEqual(user.username, 'test1')
+        self.assertTrue(user.check_password('veryStrongPassword'))
 
     def test_update_user(self):
         user = User(email='email@email.com', username='test_user', password='password')
@@ -145,8 +150,20 @@ class TestUsers(APITestCase):
         self.assertEqual(user.username, 'test_user1')
         self.assertEqual(user.email, '123@email.com')
 
+    def test_update_superuser_by_non_superuser(self):
+        user = User(email='email@email.com', username='test_user', password='password', is_superuser=True)
+        user.save()
+        self.__authenticate()
+        response = self.client.put('/api/v1/users/detail/%i/' % user.pk, {
+            'username': 'test_user1',
+            'email': '123@email.com'
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {
+            'error': 'You cannot edit the superuser'
+        })
+
     def test_update_password_user(self):
-        # https://stackoverflow.com/questions/38845051/how-to-update-user-password-in-django-rest-framework
         user = User(email='email@email.com', username='test_user', password='password')
         user.save()
         self.__authenticate()
@@ -157,6 +174,19 @@ class TestUsers(APITestCase):
         self.assertEqual(response.status_code, 204)
         user = User.objects.get(username='test_user')
         self.assertTrue(user.check_password('strongPassword'))
+
+    def test_superuser_update_password_by_regular(self):
+        user = User(email='email@email.com', username='test_user', password='password', is_superuser=True)
+        user.save()
+        self.__authenticate()
+        response = self.client.put('/api/v1/users/update-password/%i/' % user.pk, {
+            'new_password': 'strongPassword',
+        })
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {
+            'error': 'You cannot change superuser password'
+        })
 
     def test_get_user(self):
         user = User(email='email@email.com', username='test_user', password='password')
@@ -185,6 +215,18 @@ class TestUsers(APITestCase):
         r_json = response.json()
         self.assertEqual(response.status_code, 400)
         self.assertEqual(r_json, {
-            'errors': 'You cannot delete yourself'
+            'error': 'You cannot delete yourself'
         })
         self.assertEqual(User.objects.all().count(), 1)
+
+    def test_delete_user_by_not_super_user(self):
+        user = User(email='email@email.com', username='test_user', password='password', is_superuser=True)
+        user.save()
+        self.__authenticate()
+        response = self.client.delete('/api/v1/users/detail/%d/' % user.pk)
+        r_json = response.json()
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(r_json, {
+            'error': 'You cannot delete the superuser'
+        })
+        self.assertEqual(User.objects.all().count(), 2)

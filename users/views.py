@@ -5,11 +5,18 @@ from django.contrib.auth.models import User
 from django_rest_passwordreset.views import ResetPasswordRequestToken, ResetPasswordConfirm
 from rest_framework import status, mixins, generics
 from rest_framework.exceptions import ValidationError
-from rest_framework.generics import UpdateAPIView, GenericAPIView
+from rest_framework.generics import UpdateAPIView, GenericAPIView, get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-from users.serializers import UserSerializer, UserPasswordChangeSerializer
+from users.serializers import UserSerializer, UserPasswordChangeSerializer, NewUserSerializer
+
+
+def prevent_action_on_superuser_by_regular_user(user_action_id: int, current_user_is_superuser: bool, error_text: str):
+    action_user = get_object_or_404(User, pk=user_action_id)
+
+    if action_user.is_superuser and not current_user_is_superuser:
+        raise ValidationError({'error': error_text})
 
 
 class HelloView(APIView):
@@ -29,18 +36,22 @@ class ApiLogout(APIView):
 
 
 class UserList(APIView):
-    # permission_classes = (IsAuthenticated,)
-
     def get(self, request):
         users = User.objects.all()
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
 
     def post(self, request):
-        serializer = UserSerializer(data=request.data)
+        serializer = NewUserSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            user = User.objects.create_user(**serializer.data)
+            # remove password from response and add created user id
+            response = serializer.data
+            del response['password']
+            response.update({
+                'pk': user.pk
+            })
+            return Response(response, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -55,12 +66,20 @@ class UserDetail(mixins.RetrieveModelMixin,
         return self.retrieve(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):
+        prevent_action_on_superuser_by_regular_user(self.kwargs.get('pk'), request.user.is_superuser,
+                                                    'You cannot edit the superuser')
         return self.update(request, *args, **kwargs)
 
     def delete(self, request, *args, **kwargs):
+        user_to_delete_id = self.kwargs.get('pk')
+        user_to_delete = get_object_or_404(User, pk=user_to_delete_id)
         # prevent self deletion
-        if request.user.pk == self.kwargs.get('pk'):
-            raise ValidationError({'errors': 'You cannot delete yourself'})
+        if request.user.pk == user_to_delete_id:
+            raise ValidationError({'error': 'You cannot delete yourself'})
+
+        # prevent delete superuser from regular user
+        prevent_action_on_superuser_by_regular_user(user_to_delete_id, request.user.is_superuser,
+                                                    'You cannot delete the superuser')
         return self.destroy(request, *args, **kwargs)
 
 
@@ -68,10 +87,11 @@ class ChangePasswordView(UpdateAPIView):
     serializer_class = UserPasswordChangeSerializer
 
     def update(self, request, *args, **kwargs):
+        prevent_action_on_superuser_by_regular_user(self.kwargs.get('pk'), request.user.is_superuser,
+                                                    'You cannot change superuser password')
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(pk=self.kwargs.get('pk'))
-
         return Response(None, status=status.HTTP_204_NO_CONTENT)
 
 
