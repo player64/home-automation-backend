@@ -22,8 +22,6 @@ from users import urls as user_urls
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/protected/', views.HelloView.as_view(), name='hello'),
-    # path('api/v1/dashboard/', dash_view.DashboardView.as_view(), name='dashboard'),
-    # path('api/v1/workspace/<int:pk>/', dash_view.WorkspaceDetail.as_view(), name='workspaces')
     path('api/v1/devices/', include(devices_urls), name='devices'),
     path('api/v1/users/', include(user_urls), name='users'),
 ]

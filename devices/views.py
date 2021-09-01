@@ -205,11 +205,12 @@ class DeviceList(APIView):
 
     def get(self, request):
         """
-        Get all devices
+        Get all devices if parameter type it'll filter by type
         :param request:
         :return: Response
         """
-        devices = Device.objects.all()
+        device_type = request.query_params.get('type')
+        devices = Device.objects.filter(type=device_type) if device_type else Device.objects.all()
         serializer = DeviceSerializer(devices, many=True)
         return Response(serializer.data)
 
@@ -255,14 +256,9 @@ class DeviceSingle(APIView):
             # for relay only events are available
             events = DeviceEvent.objects.filter(device=device)
             e_serializer = DeviceEventSerializer(events, many=True)
-            # add sensor list that would be used on the event tab
-            sensors = Device.objects.filter(type='sensor')
-            # needed only pk and name workspace serializer is sufficient
-            sensors_serializer = WorkspaceSerializer(sensors, many=True)
 
             content.update({
                 'events': e_serializer.data,
-                'sensors': sensors_serializer.data
             })
 
         return Response(content)

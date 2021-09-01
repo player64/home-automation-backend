@@ -79,7 +79,6 @@ class TestDevices(APITestCase):
         self.assertTrue('events' in content)
         self.assertEqual(len(content['events']), 5)
         self.assertEqual(content['name'], 'Test device')
-        self.assertEqual(len(content['sensors']), 5)
 
     def test_get_device_sensor(self):
         # check json structure it shouldn't return events and sensors
@@ -89,7 +88,6 @@ class TestDevices(APITestCase):
         content = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertFalse('events' in content)
-        self.assertFalse('sensors' in content)
         self.assertTrue('workspaces' in content)
         self.assertTrue('logs' in content)
 
@@ -140,6 +138,16 @@ class TestDevices(APITestCase):
             device = Device(name='Test device %i' % i)
             device.save()
         response = self.client.get('/api/v1/devices/details/')
+        json_response = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(10, len(json_response))
+
+    def test_get_devices_by_type(self):
+        # create 10 devices each
+        for i in range(1, 11):
+            Device.objects.create(name='Test relay %i' % i, type='relay')
+            Device.objects.create(name='Test sensor %i' % i, type='sensor')
+        response = self.client.get('/api/v1/devices/details/?type=sensor')
         json_response = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(10, len(json_response))
