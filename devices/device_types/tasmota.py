@@ -53,7 +53,7 @@ class RelayTasmota(AbstractDevice):
         body = self.firmware.body
         try:
             return {
-                'state': body['POWER%i' % self.device.gpio]
+                'state': body['POWER{}'.format(self.device.gpio if self.device.gpio != 0 else '')]
             }
         except KeyError:
             raise DeviceException('Cannot read the readings from tasmota relay')
@@ -72,8 +72,9 @@ class RelayTasmota(AbstractDevice):
                 'error': 'Azure CONNECTION_STRING secret not found. Add CONNECTION_STRING to your environment.'
             })
         registry_manager = IoTHubRegistryManager(connection_secret)
+
         props = {
-            'TOPIC': '/power%i' % self.device.gpio
+            'TOPIC': '/power{}'.format(self.device.gpio if self.device.gpio != 0 else '')
         }
         try:
             registry_manager.send_c2d_message(self.device.device_host_id, state, properties=props)

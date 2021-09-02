@@ -182,6 +182,9 @@ class DeviceEventDetail(mixins.RetrieveModelMixin, mixins.UpdateModelMixin,
         # @TODO: add validation if sensor
         return self.update(request, *args, **kwargs)
 
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+
 
 class DeviceEventCreate(mixins.CreateModelMixin, generics.GenericAPIView):
     queryset = DeviceEvent.objects.all()
@@ -255,7 +258,7 @@ class DeviceSingle(APIView):
         if device.type == 'relay':
             # for relay only events are available
             events = DeviceEvent.objects.filter(device=device)
-            e_serializer = DeviceEventSerializer(events, many=True)
+            e_serializer = WorkspaceSerializer(events, many=True)
 
             content.update({
                 'events': e_serializer.data,

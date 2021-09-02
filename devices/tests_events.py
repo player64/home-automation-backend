@@ -60,3 +60,12 @@ class TestDeviceEvents(APITestCase):
         self.assertEqual(content['type'], 'time')
         self.assertEqual(content['action'], 'OFF')
         self.assertEqual(content['time'], '17:32:00')
+
+    def test_delete_event(self):
+        device = self.__create_test_device()
+        event = DeviceEvent.objects.create(name='Event', device=device, type='time',
+                                           action='ON', time='18:30')
+        self.assertEqual(len(DeviceEvent.objects.all()), 1)
+        response = self.client.delete('/api/v1/devices/event/%i/' % event.pk)
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(len(DeviceEvent.objects.all()), 0)
