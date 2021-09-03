@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 import logging
 
-from devices.tasks import task_for_every_30_minutes
+from devices.tasks import task_for_every_hour
 
 logger = logging.getLogger('django')
 
@@ -12,8 +12,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         try:
-            thirty_minutes = 30*60
-            task_for_every_30_minutes(repeat=thirty_minutes, repeat_until=None)
+            one_hour = 60*60
+            task_for_every_hour(repeat=one_hour, repeat_until=None)
             print('Command executed')
         except:
             raise CommandError('Initialization failed.')

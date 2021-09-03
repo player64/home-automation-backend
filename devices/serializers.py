@@ -3,7 +3,7 @@ from rest_framework import serializers
 from devices.models import Device, Workspace, DeviceLog, DeviceEvent
 
 
-class WorkspaceSerializer(serializers.ModelSerializer):
+class PkNameSerializer(serializers.ModelSerializer):
     class Meta:
         model = Workspace
         fields = ['pk', 'name']
@@ -21,16 +21,20 @@ class DeviceLogSerializer(serializers.ModelSerializer):
         fields = ['time', 'readings']
 
 
-class DeviceDetailSerializer(serializers.ModelSerializer):
+class DeviceInfoSerializer(serializers.HyperlinkedModelSerializer):
     # if class extends serializers.HyperlinkedModelSerializer
-    # example below lets add the whole related object in the response rather than pk
-    # workspace = WorkspaceSerializer()
+    # it adds the whole related object in the response rather than pk
+    workspace = PkNameSerializer()
 
     class Meta:
         model = Device
-        # fields = ['name', 'type', 'firmware', 'gpio', 'sensor_type', 'updated_at', 'readings', 'workspace']
-        fields = ['pk', 'name', 'type', 'firmware', 'updated_at', 'device_host_id', 'gpio', 'sensor_type', 'updated_at',
-                  'workspace']
+        fields = ['pk', 'name', 'type', 'firmware', 'updated_at', 'device_host_id', 'gpio', 'sensor_type', 'workspace']
+
+
+class DeviceDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Device
+        fields = ['pk', 'name', 'type', 'firmware', 'updated_at', 'device_host_id', 'gpio', 'sensor_type', 'workspace']
 
 
 class DeviceEventSerializer(serializers.ModelSerializer):

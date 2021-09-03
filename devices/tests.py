@@ -56,40 +56,25 @@ class TestDevices(APITestCase):
 
         response = self.client.get('/api/v1/devices/single/%i/' % device.pk)
         content = response.json()
+        self.assertEqual(content['workspace']['name'], 'Workspace')
         self.assertEqual(response.status_code, 200)
-        self.assertTrue('logs' in content)
-        self.assertEqual(len(content['logs']), 10)
-
-        self.assertTrue('workspaces' in content)
-        self.assertEqual(len(content['workspaces']), 11)
         self.assertEqual(content['name'], 'Test device')
 
     def test_get_device_with_events(self):
-        device = Device(name='Test device', device_host_id='t1', type='relay')
-        device.save()
-        # add five events and sensors
+        device = Device.objects.create(name='Test device', device_host_id='t1',
+                                       type='relay', firmware='tasmota', gpio=1)
+        device2 = Device.objects.create(name='Test device 2', device_host_id='t1',
+                                       type='relay', firmware='tasmota', gpio=3)
+        # add five events
         for i in range(1, 6):
-            event = DeviceEvent(name='Event %d' % i, device=device, type='time', action='ON', time='18:30')
-            event.save()
-            Device.objects.create(name='Sensor test', device_host_id='test', type='sensor')
+            DeviceEvent.objects.create(name='Event%d' % i, device=device, type='time',
+                                       action='ON', time='18:30')
+            DeviceEvent.objects.create(name='Event for device 2 %d' % i, device=device2, type='time',
+                                       action='ON', time='18:30')
 
-        response = self.client.get('/api/v1/devices/single/%i/' % device.pk)
-        content = response.json()
+        response = self.client.get('/api/v1/devices/events/%i/' % device.pk)
         self.assertEqual(response.status_code, 200)
-        self.assertTrue('events' in content)
-        self.assertEqual(len(content['events']), 5)
-        self.assertEqual(content['name'], 'Test device')
-
-    def test_get_device_sensor(self):
-        # check json structure it shouldn't return events and sensors
-        device = Device(name='Test device', device_host_id='t1', type='sensor')
-        device.save()
-        response = self.client.get('/api/v1/devices/single/%i/' % device.pk)
-        content = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse('events' in content)
-        self.assertTrue('workspaces' in content)
-        self.assertTrue('logs' in content)
+        self.assertEqual(len(response.json()), 5)
 
     def test_update_device_with_workspace(self):
         w = Workspace.objects.create(name='Workspace')

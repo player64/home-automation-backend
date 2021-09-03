@@ -66,11 +66,8 @@ class DeviceEvent(models.Model):
         ('OFF', 'OFF')
     )
     RULES = (
-        ('=', '='),
-        ('>', '>'),
-        ('>=', '>='),
-        ('<=', '<='),
-        ('<', '<')
+        ('>', 'is greater than'),
+        ('<', 'is lower than')
     )
 
     name = models.CharField(max_length=80)

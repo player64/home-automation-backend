@@ -13,12 +13,11 @@ import base64
 from devices.device_types.device_type_factories import RelayFactory, identify_by_payload
 from devices.device_types.exceptions import FirmwareFactoryException, DeviceException
 
-from devices.models import Device, Workspace, DeviceLog, DeviceEvent
-from devices.serializers import DeviceSerializer, WorkspaceSerializer, DeviceDetailSerializer, DeviceLogSerializer, \
-    DeviceEventSerializer, DeviceReadingSerializer
+from devices.models import Device, Workspace, DeviceLog
+from devices.serializers import DeviceSerializer, PkNameSerializer, DeviceInfoSerializer, DeviceLogSerializer, \
+    DeviceReadingSerializer, DeviceDetailSerializer
 from django.utils import timezone
 import logging
-from django.core.exceptions import ObjectDoesNotExist
 
 logger = logging.getLogger('django')
 
@@ -28,7 +27,6 @@ class DashboardView(APIView):
         workspace_id = request.query_params.get('workspace')
         if workspace_id:
             try:
-                # TODO: change this to get_object_or_404
                 workspace = Workspace.objects.get(pk=workspace_id)
             except ValueError:
                 # get unassigned devices
@@ -45,7 +43,7 @@ class DashboardView(APIView):
             sensors = Device.objects.filter(type='sensor')
 
         workspaces = Workspace.objects.all()
-        w_serializer = WorkspaceSerializer(workspaces, many=True)
+        w_serializer = PkNameSerializer(workspaces, many=True)
         r_serializer = DeviceSerializer(relays, many=True)
         s_serializer = DeviceSerializer(sensors, many=True)
         content = {
@@ -58,106 +56,6 @@ class DashboardView(APIView):
         return Response(content)
 
 
-def attach_device_list_to_workspace(devices, workspace):
-    try:
-        attached_devices = Device.objects.filter(workspace=workspace)
-        # clear previously attached devices
-        for device in attached_devices:
-            device.workspace = None
-            device.save()
-        if not devices:
-            return
-        for device_id in devices:
-            device = Device.objects.get(pk=device_id)
-            device.workspace = workspace
-            device.save()
-    except ValueError:
-        return {
-            'error': 'The device ID isn\'t numeric'
-        }
-    except ObjectDoesNotExist:
-        return {
-            'error': 'The device doesn\'t exist'
-        }
-    except Exception as error:
-        return {
-            'error': str(error)
-        }
-
-
-class WorkspaceList(APIView):
-    def get(self, request):
-        workspaces = Workspace.objects.all()
-        serializer = WorkspaceSerializer(workspaces, many=True)
-        return Response(serializer.data)
-
-    def post(self, request):
-        # add new workspace
-        serializer = WorkspaceSerializer(data=request.data)
-        if serializer.is_valid():
-            workspace = serializer.save()
-            try:
-                # attach created workspace to devices
-                devices = request.data.get('devices')
-                attach_to_devices = attach_device_list_to_workspace(devices, workspace)
-                if attach_to_devices:
-                    return Response(attach_to_devices, status=status.HTTP_400_BAD_REQUEST)
-            except ValueError:
-                pass
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class WorkspaceDetail(mixins.RetrieveModelMixin,
-                      mixins.UpdateModelMixin,
-                      mixins.CreateModelMixin,
-                      mixins.DestroyModelMixin,
-                      generics.GenericAPIView):
-    queryset = Workspace.objects.all()
-    serializer_class = WorkspaceSerializer
-
-    def get(self, request, *args, **kwargs):
-        # @TODO replace this method with new class add devices belongs to the workspace as well
-        return self.retrieve(request, *args, **kwargs)
-
-    def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
-
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
-
-
-class WorkspaceSingle(APIView):
-    def get(self, request, workspace_id):
-        workspace = get_object_or_404(Workspace, pk=workspace_id)
-        w_serializer = WorkspaceSerializer(workspace)
-        devices = Device.objects.filter(workspace__pk=workspace.pk)
-
-        # for devices used the same serializer only two same fields wanted.
-        d_serializer = WorkspaceSerializer(devices, many=True)
-
-        return Response({
-            **w_serializer.data,
-            'devices': d_serializer.data
-        })
-
-    def put(self, request, workspace_id):
-        workspace = get_object_or_404(Workspace, pk=workspace_id)
-        serializer = WorkspaceSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.update(workspace, serializer.data)
-            try:
-                # attach created workspace to devices
-                devices = request.data.get('devices')
-                attach_to_devices = attach_device_list_to_workspace(devices, workspace)
-                if attach_to_devices:
-                    return Response(attach_to_devices, status=status.HTTP_400_BAD_REQUEST)
-            except ValueError:
-                pass
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
 class DeviceSearch(APIView):
     def get(self, request):
         search_by = request.query_params.get('name')
@@ -166,42 +64,8 @@ class DeviceSearch(APIView):
 
         devices = Device.objects.filter(name__contains=search_by)
         # for devices used the same serializer only two same fields wanted.
-        d_serializer = WorkspaceSerializer(devices, many=True)
+        d_serializer = PkNameSerializer(devices, many=True)
         return Response(d_serializer.data)
-
-
-class DeviceEventDetail(mixins.RetrieveModelMixin, mixins.UpdateModelMixin,
-                        mixins.DestroyModelMixin, generics.GenericAPIView):
-    queryset = DeviceEvent.objects.all()
-    serializer_class = DeviceEventSerializer
-
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
-
-    def put(self, request, *args, **kwargs):
-        # @TODO: add validation if sensor
-        return self.update(request, *args, **kwargs)
-
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
-
-
-class DeviceEventCreate(mixins.CreateModelMixin, generics.GenericAPIView):
-    queryset = DeviceEvent.objects.all()
-    serializer_class = DeviceEventSerializer
-
-    def post(self, request, *args, **kwarg):
-        event_type = request.data.get('type')
-        time = request.data.get('time')
-        sensor = request.data.get('time')
-        reading_type = request.data.get('reading_type')
-        rule = request.data.get('rule')
-        value = request.data.get('value')
-
-        if event_type == 'time' and not time:
-            raise ValidationError({'error': 'Time cannot be empty'})
-
-        return self.create(request, *args, **kwarg)
 
 
 class DeviceList(APIView):
@@ -214,7 +78,7 @@ class DeviceList(APIView):
         """
         device_type = request.query_params.get('type')
         devices = Device.objects.filter(type=device_type) if device_type else Device.objects.all()
-        serializer = DeviceSerializer(devices, many=True)
+        serializer = DeviceDetailSerializer(devices, many=True)
         return Response(serializer.data)
 
     def post(self, request):
@@ -240,31 +104,8 @@ class DeviceSingle(APIView):
         :return: Response
         """
         device = get_object_or_404(Device, pk=device_id)
-        d_serializer = DeviceDetailSerializer(device)
-        # filter logs to today
-        _today = datetime.today().strftime('%Y-%m-%d')
-        logs = DeviceLog.objects.filter(device=device, time__contains=str(_today))
-
-        l_serializer = DeviceLogSerializer(logs, many=True)
-        workspaces = Workspace.objects.all()
-        w_serializer = WorkspaceSerializer(workspaces, many=True)
-
-        content = {
-            **d_serializer.data,
-            'logs': l_serializer.data,
-            'workspaces': w_serializer.data,
-        }
-
-        if device.type == 'relay':
-            # for relay only events are available
-            events = DeviceEvent.objects.filter(device=device)
-            e_serializer = WorkspaceSerializer(events, many=True)
-
-            content.update({
-                'events': e_serializer.data,
-            })
-
-        return Response(content)
+        d_serializer = DeviceInfoSerializer(device)
+        return Response(d_serializer.data)
 
 
 class DeviceDetail(mixins.RetrieveModelMixin,

@@ -31,6 +31,7 @@ class TestDeviceEvents(APITestCase):
                                            action='ON', time='18:30')
         response = self.client.put('/api/v1/devices/event/%i/' % event.pk, {
             'name': 'Title updated',
+            'type': 'time',
             'action': 'OFF',
             'device': device.pk,
             'time': '17:32'
@@ -53,13 +54,24 @@ class TestDeviceEvents(APITestCase):
             'time': '17:32'
         })
         content = response.json()
-
         self.assertEqual(response.status_code, 201)
         self.assertEqual(content['name'], 'Event')
         self.assertEqual(content['device'], device.pk)
         self.assertEqual(content['type'], 'time')
         self.assertEqual(content['action'], 'OFF')
         self.assertEqual(content['time'], '17:32:00')
+
+    def test_create_event_error(self):
+        device = self.__create_test_device()
+        response = self.client.post('/api/v1/devices/event/', {
+            'name': 'Event',
+            'device': device.pk,
+            'type': 'sensor',
+            'action': 'OFF',
+        })
+        content = response.json()
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(content['error'], 'Sensor is required')
 
     def test_delete_event(self):
         device = self.__create_test_device()
