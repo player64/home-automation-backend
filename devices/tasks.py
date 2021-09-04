@@ -29,7 +29,10 @@ def sensor_periodic_tasks():
 
 def is_event_time(event_time: datetime) -> bool:
     now = datetime.now()
-    return now.hour == event_time.hour and now.minute == event_time.minute
+    # the event can be run at the same minute twice to avoid
+    # skipping the task allow run task when difference is one minute
+    minute_margin = [0, 1]
+    return now.hour == event_time.hour and event_time.minute - now.minute in minute_margin
 
 
 def is_eligible_to_fire_task_based_on_readings(task: DeviceEvent) -> bool:

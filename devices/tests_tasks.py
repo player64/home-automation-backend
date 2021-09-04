@@ -125,8 +125,16 @@ class TestFireTasks(TestCase):
             DeviceEvent.objects.create(name='Event', device=device, type='time',
                                        action='ON', time='18:3%i' % i)
         fired_tasks = time_relay_task()
-        self.assertEqual(len(fired_tasks), 1)
+        self.assertEqual(len(fired_tasks), 2)
         self.assertEqual(fired_tasks[0], 'ON')
+
+    @patch.object(datetime, 'now')
+    def test_time_relay_task_one_minute_earlier(self, mock_time_now, mock_azure, mock_connection_key):
+        mock_time_now.return_value = mock_time_return(18, 29)
+        device = create_device({'state': 'off'})
+        DeviceEvent.objects.create(name='Event', device=device, type='time',
+                                   action='ON', time='18:30')
+        self.assertEqual(len(time_relay_task()), 1)
 
     @patch.object(datetime, 'now')
     def test_time_relay_task_with_same_state(self, mock_time_now, mock_azure, mock_connection_key):
