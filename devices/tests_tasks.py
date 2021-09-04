@@ -40,16 +40,18 @@ class TestTask(TestCase):
 
     @patch.object(datetime, 'now')
     def test_is_event_time(self, mock_time_now):
-        mock_time_now.return_value = mock_time_return(18, 30)
+        mock_time_now.return_value = mock_time_return(18, 29)
         device = create_device(None)
         task = DeviceEvent.objects.create(name='Event', device=device, type='time',
-                                          action='ON', time=mock_time_return(18, 30))
-
+                                          action='ON', time=mock_time_return(18, 29))
         task2 = DeviceEvent.objects.create(name='Event', device=device, type='time',
-                                           action='ON', time=mock_time_return(18, 31))
+                                           action='ON', time=mock_time_return(18, 30))
+        task3 = DeviceEvent.objects.create(name='Event', device=device, type='time',
+                                           action='ON', time=mock_time_return(18, 32))
 
         self.assertTrue(is_event_time(task.time))
-        self.assertFalse(is_event_time(task2.time))
+        self.assertTrue(is_event_time(task2.time))
+        self.assertFalse(is_event_time(task3.time))
 
     def test_is_eligible_to_fire_task_based_on_readings(self):
         device = create_device(None)
