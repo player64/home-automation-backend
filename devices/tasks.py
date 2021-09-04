@@ -42,11 +42,25 @@ def is_eligible_to_fire_task_based_on_readings(task: DeviceEvent) -> bool:
         device_state = readings['state'].lower()
         return task.action.lower() != device_state
     except KeyError:
-        logger.error('Task - state cannot be obtained')
+        logger.error('Task - the device state cannot be obtained')
         return False
     except json.decoder.JSONDecodeError:
-        logger.error('Task - readings cannot be converted to JSON')
+        logger.error('Task - the device readings cannot be converted to JSON')
         return False
+
+
+def relay_action(device: Device, state: str):
+    try:
+        relay_factory = RelayFactory(device).obtain_factory()
+        relay = relay_factory(None, device)
+        action = relay.message(state)
+        return action['state']
+    except DeviceException as e:
+        logger.error("Task -  problem to send message to the device - %s" % str(e))
+    except KeyError:
+        logger.error('Task - problem with message method state key not found')
+    except Exception as e:
+        logging.error('Task error - %s' % str(e))
 
 
 def time_relay_task() -> list[str]:
@@ -60,22 +74,15 @@ def time_relay_task() -> list[str]:
     for task in tasks:
         if not (is_event_time(task.time) and is_eligible_to_fire_task_based_on_readings(task)):
             continue
-        try:
-            relay_factory = RelayFactory(task.device).obtain_factory()
-            relay = relay_factory(None, task.device)
-            state = relay.message(task.action)
-            fired_tasks.append(state['state'])
-        except DeviceException as e:
-            logger.error("Time task -  problem to send message to the device - %s" % str(e))
-            continue
-        except KeyError:
-            logger.error('Time task - problem with message method state key not found')
-            continue
+        # fire action
+        action = relay_action(task.device, task.action)
+        if action:
+            fired_tasks.append(action)
     return fired_tasks
 
 
-def get_sensor_reading_type(sensor: Device, reading_type) -> float or None:
-    if not sensor.readings:
+def get_sensor_reading_type(sensor: Device, reading_type: str) -> float or None:
+    if not sensor or not sensor.readings:
         return None
     try:
         readings = json.loads(sensor.readings)
@@ -102,13 +109,22 @@ def sensor_rule_task(rule: str, sensor_reading: float, task_reading: float) -> b
 
 def sensor_relay_task():
     """
-    Every five minutes check sensor task base on sensor readings fire task
+    Every five minutes check sensor task based on sensor readings fire task
     :return:
     """
     tasks = DeviceEvent.objects.filter(type='sensor')
+    # fired_tasks is for testing purposes
+    fired_tasks = []
     for task in tasks:
         sensor = task.sensor
-        relay = task.device
+        sensor_reading = get_sensor_reading_type(sensor, task.reading_type)
+        if sensor_reading and is_eligible_to_fire_task_based_on_readings(task) and sensor_rule_task(task.rule,
+                                                                                                    sensor_reading,
+                                                                                                    task.value):
+            action = relay_action(task.device, task.action)
+            if action:
+                fired_tasks.append(action)
+    return fired_tasks
 
 
 @background
@@ -118,3 +134,21 @@ def task_for_every_hour():
     :return: None
     """
     sensor_periodic_tasks()
+
+
+@background
+def time_task():
+    """
+    Task runs for every minute
+    :return:
+    """
+    time_relay_task()
+
+
+@background
+def senor_tasks():
+    """
+    Task runs for every five minutes
+    :return:
+    """
+    sensor_relay_task()

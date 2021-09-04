@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.utils.datetime_safe import datetime
 from devices.models import Device, DeviceLog, DeviceEvent
 from devices.tasks import sensor_periodic_tasks, time_relay_task, is_event_time, \
-    is_eligible_to_fire_task_based_on_readings, get_sensor_reading_type, sensor_rule_task
+    is_eligible_to_fire_task_based_on_readings, get_sensor_reading_type, sensor_rule_task, sensor_relay_task
 
 
 def mock_time_return(hour: int, minute: int):
@@ -105,6 +105,10 @@ class TestTask(TestCase):
     def test_sensor_rule_task_wrong_rule(self):
         self.assertFalse(sensor_rule_task('test', 22, 21))
 
+    def test_time_sensor_tasks_with_no_tasks(self):
+        self.assertEqual(len(sensor_relay_task()), 0)
+        self.assertEqual(len(time_relay_task()), 0)
+
 
 @patch('azure.iot.hub.IoTHubRegistryManager.send_c2d_message', return_value='')
 @patch('os.environ.get', return_value='HostName=test;SharedAccessKeyName=test;SharedAccessKey=test')
@@ -141,3 +145,39 @@ class TestFireTasks(TestCase):
                                    action='ON', time='18:30')
         fired_tasks = time_relay_task()
         self.assertEqual(len(fired_tasks), 1)
+
+    def test_sensor_task(self, mock_azure, mock_connection_key):
+        relay = create_device({
+            'state': 'on'
+        })
+        sensor = create_device({
+            'temperature': 22.6,
+        }, 'sensor')
+        DeviceEvent.objects.create(name='Event', device=relay, type='sensor', reading_type='temperature', rule='>',
+                                   sensor=sensor, action='OFF', value=21)
+        DeviceEvent.objects.create(name='Event', device=relay, type='sensor', reading_type='temperature', rule='<',
+                                   sensor=sensor, action='OFF', value=23)
+        fired_tasks = sensor_relay_task()
+        self.assertEqual(len(fired_tasks), 2)
+
+    def test_sensor_task_with_no_relay_readings(self, mock1, mock2):
+        relay = create_device(None)
+        sensor = create_device({
+            'temperature': 22.6,
+        }, 'sensor')
+        DeviceEvent.objects.create(name='Event', device=relay, type='sensor', reading_type='temperature', rule='>',
+                                   sensor=sensor, action='OFF', value=21)
+        fired_tasks = sensor_relay_task()
+        self.assertEqual(len(fired_tasks), 1)
+
+    def test_sensor_task_with_the_same_state(self, mock1, mock2):
+        relay = create_device({
+            'state': 'on'
+        })
+        sensor = create_device({
+            'temperature': 22.6,
+        }, 'sensor')
+        DeviceEvent.objects.create(name='Event', device=relay, type='sensor', reading_type='temperature', rule='>',
+                                   sensor=sensor, action='ON', value=21)
+        fired_tasks = sensor_relay_task()
+        self.assertEqual(len(fired_tasks), 0)
