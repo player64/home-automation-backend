@@ -4,8 +4,6 @@
 # import django
 #
 # django.setup()
-import json
-
 from django.utils.datetime_safe import datetime
 
 from devices.device_types.device_type_factories import RelayFactory
@@ -38,14 +36,14 @@ def is_eligible_to_fire_task_based_on_readings(task: DeviceEvent) -> bool:
     if not task.device.readings:
         return True
     try:
-        readings = json.loads(task.device.readings)
+        readings = task.device.readings
         device_state = readings['state'].lower()
         return task.action.lower() != device_state
     except KeyError:
         logger.error('Task - the device state cannot be obtained')
         return False
-    except json.decoder.JSONDecodeError:
-        logger.error('Task - the device readings cannot be converted to JSON')
+    except TypeError:
+        logger.error('Task - the device state not found in readings')
         return False
 
 
@@ -85,13 +83,13 @@ def get_sensor_reading_type(sensor: Device, reading_type: str) -> float or None:
     if not sensor or not sensor.readings:
         return None
     try:
-        readings = json.loads(sensor.readings)
+        readings = sensor.readings
         return readings[reading_type]
     except KeyError:
         logger.error("Sensor task - reading type not found in sensor readings")
         return None
-    except json.decoder.JSONDecodeError:
-        logger.error("Sensor task - sensor readings cannot be converted")
+    except TypeError:
+        logger.error("Sensor task - sensor readings are in wrong format")
         return None
 
 

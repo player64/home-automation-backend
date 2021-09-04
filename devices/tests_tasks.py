@@ -13,7 +13,7 @@ def mock_time_return(hour: int, minute: int):
 
 def create_device(readings: dict or None, device_type='relay') -> Device:
     device = Device(name='Test', device_host_id='t1', type=device_type,
-                    readings=json.dumps(readings) if readings else None)
+                    readings=readings if readings else None)
     if device_type == 'relay':
         device.gpio = 1
     elif device_type == 'sensor':
