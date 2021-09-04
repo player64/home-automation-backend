@@ -63,7 +63,7 @@ def relay_action(device: Device, state: str):
         logging.error('Task error - %s' % str(e))
 
 
-def time_relay_task() -> list[str]:
+def time_relay_task():
     """
     At every minute check is any event to run
     :return:
