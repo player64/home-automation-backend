@@ -1,4 +1,4 @@
-# Home automation - Backend VUE.js
+# Home automation - Backend Django
 This project aims to develop a user-friendly web application where a user will be able
 to manage its devices. Furthermore, by automating various tasks such as enable/disable based on the current
 environment state read from the sensors, electrical appliances will help reduce the energy bill, e.g.,
