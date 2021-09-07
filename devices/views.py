@@ -98,7 +98,7 @@ class DeviceList(APIView):
 class DeviceSingle(APIView):
     def get(self, request, device_id):
         """
-        Get single device with related Logs and Events
+        Get single device
         :param device_id:
         :param request:
         :return: Response
@@ -114,10 +114,6 @@ class DeviceDetail(mixins.RetrieveModelMixin,
                    generics.GenericAPIView):
     queryset = Device.objects.all()
     serializer_class = DeviceDetailSerializer
-
-    def get(self, request, *args, **kwargs):
-        # @TODO: to remove
-        return self.retrieve(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)

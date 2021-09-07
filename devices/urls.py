@@ -1,6 +1,4 @@
-from django.conf.urls import url
 from django.urls import path
-
 from devices import views
 from devices import views_events
 from devices import views_workspaces

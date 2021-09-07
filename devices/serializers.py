@@ -41,7 +41,6 @@ class DeviceEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = DeviceEvent
         fields = '__all__'
-        # read_only_fields = ('device',)
 
 
 class DeviceReadingSerializer(serializers.ModelSerializer):

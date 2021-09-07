@@ -67,7 +67,6 @@ class WorkspaceDetail(mixins.RetrieveModelMixin,
     serializer_class = PkNameSerializer
 
     def get(self, request, *args, **kwargs):
-        # @TODO replace this method with new class add devices belongs to the workspace as well
         return self.retrieve(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):

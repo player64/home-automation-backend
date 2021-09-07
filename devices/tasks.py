@@ -1,9 +1,3 @@
-# import os
-#
-# os.environ.setdefault("DJANGO_SETTINGS_MODULE", 'backend.settings')
-# import django
-#
-# django.setup()
 from django.utils.datetime_safe import datetime
 
 from devices.device_types.device_type_factories import RelayFactory
